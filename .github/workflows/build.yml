@@ -1,0 +1,96 @@
+
+name: Build Zoxgram APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/build.yml'
+      - 'BuildVars.java'
+      - 'TMessagesProj/**'
+      - 'TMessagesProj_App/**'
+      - 'TMessagesProj_AppHockeyApp/**'
+      - 'TMessagesProj_AppHuawei/**'
+      - 'TMessagesProj_AppStandalone/**'
+      - 'TMessagesProj_AppTests/**'
+      - 'TMessagesProj_Modules/**'
+      - 'buildSrc/**'
+      - 'gradle.properties'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle/**'
+      - 'gradlew'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout source and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager "platforms;android-36" \
+                     "build-tools;36.0.0" \
+                     "ndk;27.2.12479018" \
+                     "cmake;3.22.1"
+
+      - name: Restore release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || {
+            echo "Missing RELEASE_KEYSTORE_BASE64 secret"
+            exit 1
+          }
+          mkdir -p TMessagesProj/config
+          echo "$KEYSTORE_BASE64" | base64 --decode \
+            > TMessagesProj/config/release.keystore
+          test -s TMessagesProj/config/release.keystore
+
+      - name: Build signed APK
+        env:
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+        run: |
+          test -n "$RELEASE_KEY_PASSWORD"
+          test -n "$RELEASE_KEY_ALIAS"
+          test -n "$RELEASE_STORE_PASSWORD"
+
+          chmod +x gradlew
+
+          ./gradlew \
+            :TMessagesProj_App:assembleAfatRelease \
+            --no-daemon \
+            --stacktrace \
+            -PRELEASE_KEY_PASSWORD="$RELEASE_KEY_PASSWORD" \
+            -PRELEASE_KEY_ALIAS="$RELEASE_KEY_ALIAS" \
+            -PRELEASE_STORE_PASSWORD="$RELEASE_STORE_PASSWORD"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zoxgram-APK
+          path: |
+            **/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 7
