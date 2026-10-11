@@ -34,15 +34,41 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Configure Android SDK
+        shell: bash
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+
+          if [ ! -d "$SDK/cmdline-tools" ]; then
+            echo "::error::Android SDK command-line tools directory not found: $SDK/cmdline-tools"
+            exit 1
+          fi
+
+          SDKMANAGER="$(find "$SDK/cmdline-tools" -maxdepth 3 -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::Could not find sdkmanager in $SDK/cmdline-tools"
+            exit 1
+          fi
+
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+
+          echo "Using Android SDK: $SDK"
+          "$SDKMANAGER" --version
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        shell: bash
+        run: |
+          set -o pipefail
+          yes | "$SDKMANAGER" --licenses
 
       - name: Install required Android SDK packages
         run: |
-          sdkmanager \
+          "$SDKMANAGER" \
             "platform-tools" \
             "platforms;android-36" \
             "build-tools;36.0.0" \
@@ -60,14 +86,17 @@ jobs:
             echo "::error::Missing RELEASE_KEYSTORE_BASE64"
             exit 1
           }
+
           test -n "$STORE_PASSWORD" || {
             echo "::error::Missing RELEASE_STORE_PASSWORD"
             exit 1
           }
+
           test -n "$KEY_PASSWORD" || {
             echo "::error::Missing RELEASE_KEY_PASSWORD"
             exit 1
           }
+
           test -n "$KEY_ALIAS" || {
             echo "::error::Missing RELEASE_KEY_ALIAS"
             exit 1
@@ -78,6 +107,7 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
           mkdir -p TMessagesProj/config
+
           printf '%s' "$KEYSTORE_BASE64" \
             | base64 --decode \
             > TMessagesProj/config/release.keystore
@@ -91,12 +121,12 @@ jobs:
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
           {
-            echo "RELEASE_STORE_PASSWORD=$STORE_PASSWORD"
-            echo "RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
-            echo "RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            printf 'RELEASE_STORE_PASSWORD=%s\n' "$STORE_PASSWORD"
+            printf 'RELEASE_KEY_PASSWORD=%s\n' "$KEY_PASSWORD"
+            printf 'RELEASE_KEY_ALIAS=%s\n' "$KEY_ALIAS"
           } >> "$GITHUB_WORKSPACE/gradle.properties"
 
-      - name: Verify keystore
+      - name: Verify release keystore
         env:
           STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
@@ -109,7 +139,7 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Build APK
+      - name: Build signed APK
         run: |
           ./gradlew \
             :TMessagesProj_App:assembleAfatRelease \
