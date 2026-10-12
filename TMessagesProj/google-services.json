@@ -7,9 +7,47 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:954428349300:android:c088bdc719489fc2472a21",
+        "mobilesdk_app_id": "1:954428349300:android:4a3f6081c6ac3130472a21",
         "android_client_info": {
           "package_name": "com.krsxh.zoxgram"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM-aMTUTnloenbD-t3nvrWfWF5uF8TwXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954428349300:android:c088bdc719489fc2472a21",
+        "android_client_info": {
+          "package_name": "org.telegram.messenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAM-aMTUTnloenbD-t3nvrWfWF5uF8TwXU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:954428349300:android:4fc64a098b4bf13e472a21",
+        "android_client_info": {
+          "package_name": "org.telegram.messenger.beta"
         }
       },
       "oauth_client": [],
