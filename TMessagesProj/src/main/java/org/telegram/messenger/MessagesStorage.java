@@ -385,6 +385,7 @@ public class MessagesStorage extends BaseController {
                     }
                 }
             }
+            database.executeFast("CREATE TABLE IF NOT EXISTS deleted_messages(uid INTEGER, mid INTEGER, date INTEGER, deleted_at INTEGER, data BLOB, PRIMARY KEY(uid, mid))").stepThis().dispose();
             databaseCreated = true;
         } catch (Exception e) {
             FileLog.e(e);
@@ -532,7 +533,8 @@ public class MessagesStorage extends BaseController {
             "emoji_groups",
             "poll_votes_mentions",
             "poll_votes_mentions_topics",
-            "ephemeral_messages"
+            "ephemeral_messages",
+            "deleted_messages"
     };
 
     public static void createTables(SQLiteDatabase database) throws SQLiteException {
@@ -14886,6 +14888,12 @@ public class MessagesStorage extends BaseController {
                         cursor.dispose();
                         cursor = null;
                     }
+                    if (SharedConfig.archiveDeletedMessages) {
+                        database.executeFast(String.format(Locale.US,
+                                "INSERT OR IGNORE INTO deleted_messages(uid, mid, date, deleted_at, data) SELECT uid, mid, date, CAST(strftime('%%s','now') AS INTEGER), data FROM messages_v2 WHERE mid IN(%s) AND uid = %d",
+                                ids, did)).stepThis().dispose();
+                        database.executeFast("DELETE FROM deleted_messages WHERE rowid NOT IN (SELECT rowid FROM deleted_messages ORDER BY deleted_at DESC, mid DESC LIMIT 1000)").stepThis().dispose();
+                    }
                     database.executeFast(String.format(Locale.US, "DELETE FROM messages_v2 WHERE mid IN(%s) AND uid = %d", ids, did)).stepThis().dispose();
                     database.executeFast(String.format(Locale.US, "DELETE FROM messages_topics WHERE mid IN(%s) AND uid = %d", ids, did)).stepThis().dispose();
                     database.executeFast(String.format(Locale.US, "DELETE FROM polls_v2 WHERE mid IN(%s) AND uid = %d", ids, did)).stepThis().dispose();
@@ -15324,6 +15332,67 @@ public class MessagesStorage extends BaseController {
         return null;
     }
 
+    public static class DeletedMessageRecord {
+        public long dialogId;
+        public int messageId;
+        public int date;
+        public int deletedAt;
+        public String text;
+    }
+
+    public interface DeletedMessagesLoadedListener {
+        void onLoaded(ArrayList<DeletedMessageRecord> messages);
+    }
+
+    public void loadDeletedMessages(DeletedMessagesLoadedListener listener) {
+        storageQueue.postRunnable(() -> {
+            ArrayList<DeletedMessageRecord> result = new ArrayList<>();
+            SQLiteCursor cursor = null;
+            try {
+                cursor = database.queryFinalized("SELECT uid, mid, date, deleted_at, data FROM deleted_messages ORDER BY deleted_at DESC, mid DESC LIMIT 1000");
+                while (cursor.next()) {
+                    NativeByteBuffer data = cursor.byteBufferValue(4);
+                    if (data == null) {
+                        continue;
+                    }
+                    try {
+                        TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
+                        if (message != null) {
+                            DeletedMessageRecord record = new DeletedMessageRecord();
+                            record.dialogId = cursor.longValue(0);
+                            record.messageId = cursor.intValue(1);
+                            record.date = cursor.intValue(2);
+                            record.deletedAt = cursor.intValue(3);
+                            record.text = message.message;
+                            result.add(record);
+                        }
+                    } catch (Exception e) {
+                        FileLog.e(e);
+                    } finally {
+                        data.reuse();
+                    }
+                }
+            } catch (Exception e) {
+                checkSQLException(e);
+            } finally {
+                if (cursor != null) {
+                    cursor.dispose();
+                }
+            }
+            AndroidUtilities.runOnUIThread(() -> listener.onLoaded(result));
+        });
+    }
+
+    public void clearDeletedMessages() {
+        storageQueue.postRunnable(() -> {
+            try {
+                database.executeFast("DELETE FROM deleted_messages").stepThis().dispose();
+            } catch (Exception e) {
+                checkSQLException(e);
+            }
+        });
+    }
+
     private ArrayList<Long> markMessagesAsDeletedInternal(long channelId, int mid, boolean deleteFiles) {
         SQLiteCursor cursor = null;
         SQLitePreparedStatement state = null;
@@ -15335,6 +15404,13 @@ public class MessagesStorage extends BaseController {
             ArrayList<String> namesToDelete = new ArrayList<>();
             ArrayList<Pair<Long, Integer>> idsToDelete = new ArrayList<>();
             long currentUser = getUserConfig().getClientUserId();
+
+            if (SharedConfig.archiveDeletedMessages) {
+                database.executeFast(String.format(Locale.US,
+                        "INSERT OR IGNORE INTO deleted_messages(uid, mid, date, deleted_at, data) SELECT uid, mid, date, CAST(strftime('%%s','now') AS INTEGER), data FROM messages_v2 WHERE uid = %d AND mid <= %d",
+                        -channelId, mid)).stepThis().dispose();
+                database.executeFast("DELETE FROM deleted_messages WHERE rowid NOT IN (SELECT rowid FROM deleted_messages ORDER BY deleted_at DESC, mid DESC LIMIT 1000)").stepThis().dispose();
+            }
 
             cursor = database.queryFinalized(String.format(Locale.US, "SELECT uid, data, read_state, out, mention FROM messages_v2 WHERE uid = %d AND mid <= %d", -channelId, mid));
 

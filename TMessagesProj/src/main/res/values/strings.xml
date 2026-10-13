@@ -4,6 +4,15 @@
     <string name="AppNameBeta">Zoxgram Beta</string>
     <string name="ProfileUserId">User ID</string>
     <string name="ProfileChatId">Chat ID</string>
+    <string name="ProfileEstimatedJoinDate">Estimated joined (may be inaccurate)</string>
+    <string name="OfficialZoxgram">Official Zoxgram</string>
+    <string name="OfficialChannelShortcut">Open official channel</string>
+    <string name="DeletedMessagesArchive">Keep deleted messages on this device</string>
+    <string name="DeletedMessagesHistory">Deleted messages</string>
+    <string name="DeletedMessagesClear">Clear deleted messages</string>
+    <string name="DeletedMessagesClearConfirm">This removes the locally archived messages from this device.</string>
+    <string name="DeletedMessagesEmpty">No deleted messages have been archived.</string>
+    <string name="DeletedMessageMedia">Media message</string>
     <string name="LanguageName">English</string>
     <string name="English">English</string>
     <string name="LanguageNameInEnglish">English</string>

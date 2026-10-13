@@ -110,7 +110,8 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
             VIEW_TYPE_GRAY_SECTION = 20,
             VIEW_TYPE_FORWARD_TO_STORIES_CELL = 21,
             VIEW_TYPE_HEADER_3 = 22,
-            VIEW_TYPE_DIALOG_COMMUNITY = 23;
+            VIEW_TYPE_DIALOG_COMMUNITY = 23,
+            VIEW_TYPE_OFFICIAL_CHANNEL = 24;
 
     private Context mContext;
     private ArchiveHintCell archiveHintCell;
@@ -143,6 +144,7 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
 
     private DialogsPreloader preloader;
     private boolean forceShowEmptyCell;
+    private boolean officialChannelShortcut;
 
     private DialogsActivity parentFragment;
     private boolean isTransitionSupport;
@@ -182,6 +184,9 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     }
 
     public int fixPosition(int position) {
+        if (officialChannelShortcut) {
+            position--;
+        }
         if (hasChatlistHint) {
             position--;
         }
@@ -646,6 +651,10 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup viewGroup, int viewType) {
         View view;
         switch (viewType) {
+            case VIEW_TYPE_OFFICIAL_CHANNEL:
+                view = new TextCell(mContext);
+                view.setBackgroundDrawable(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector)));
+                break;
             case VIEW_TYPE_DIALOG_COMMUNITY:
                 DialogCell dialogCell2 = new DialogCell(parentFragment, mContext, true, false, currentAccount, null);
                 if (communityId != 0) {
@@ -893,6 +902,14 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int i) {
         switch (holder.getItemViewType()) {
+            case VIEW_TYPE_OFFICIAL_CHANNEL: {
+                TextCell cell = (TextCell) holder.itemView;
+                cell.setColors(Theme.key_windowBackgroundWhiteBlueText4, Theme.key_windowBackgroundWhiteGrayText2);
+                cell.setTextAndValue(getString(R.string.OfficialZoxgram), getString(R.string.OfficialChannelShortcut), true);
+                cell.setIsInDialogs();
+                cell.setOffsetFromImage(75);
+                break;
+            }
             case VIEW_TYPE_FORWARD_TO_STORIES_CELL: {
                 TLRPC.Dialog nextDialog = (TLRPC.Dialog) getItem(i + 1);
 
@@ -1207,6 +1224,9 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     }
 
     public void moveDialogs(RecyclerListView recyclerView, int fromPosition, int toPosition) {
+        if (getItemViewType(fromPosition) == VIEW_TYPE_OFFICIAL_CHANNEL || getItemViewType(toPosition) == VIEW_TYPE_OFFICIAL_CHANNEL) {
+            return;
+        }
         ArrayList<TLRPC.Dialog> dialogs = parentFragment.getDialogsArray(currentAccount, dialogsType, folderId, false);
         int fromIndex = fixPosition(fromPosition);
         int toIndex = fixPosition(toPosition);
@@ -1605,6 +1625,7 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
     }
 
     private void updateItemList() {
+        officialChannelShortcut = false;
         if (communityId != 0) {
             updateItemListForCommunity();
             return;
@@ -1630,6 +1651,10 @@ public class DialogsAdapter extends RecyclerListView.SelectionAdapter implements
         if (dialogsCount == 0 && parentFragment.isArchive()) {
             itemInternals.add(new ItemInternal(VIEW_TYPE_ARCHIVE_FULLSCREEN));
             return;
+        }
+        if (dialogsType == DialogsActivity.DIALOGS_TYPE_DEFAULT && folderId == 0 && !isOnlySelect && communityId == 0 && !collapsedView && requestPeerType == null) {
+            officialChannelShortcut = true;
+            itemInternals.add(new ItemInternal(VIEW_TYPE_OFFICIAL_CHANNEL));
         }
 
         if (!hasHints && dialogsType == 0 && folderId == 0 && messagesController.isDialogsEndReached(folderId) && !forceUpdatingContacts) {

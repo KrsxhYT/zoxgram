@@ -4367,6 +4367,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             viewPage.listView.setOnItemClickListener((view, position, x, y) -> {
                 if (view instanceof GraySectionCell)
                     return;
+                if (viewPage.dialogsAdapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_OFFICIAL_CHANNEL) {
+                    Browser.openUrl(getContext(), "https://t.me/OfficialZoxgram");
+                    return;
+                }
                 if (view instanceof DialogCell && ((DialogCell) view).isBlocked()) {
                     showPremiumBlockedToast(view, ((DialogCell) view).getDialogId());
                     return;
@@ -4435,6 +4439,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                 public boolean onItemClick(View view, int position, float x, float y) {
                     if (view instanceof DialogCell && ((DialogCell) view).isBlocked()) {
                         showPremiumBlockedToast(view, ((DialogCell) view).getDialogId());
+                        return true;
+                    }
+                    if (viewPage.dialogsAdapter.getItemViewType(position) == DialogsAdapter.VIEW_TYPE_OFFICIAL_CHANNEL) {
                         return true;
                     }
                     if (filterTabsView != null && filterTabsView.getVisibility() == View.VISIBLE && filterTabsView.isEditing()) {

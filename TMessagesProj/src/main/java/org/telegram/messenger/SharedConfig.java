@@ -236,6 +236,7 @@ public class SharedConfig {
     public static int autoLockIn = 60 * 60;
 
     public static boolean saveIncomingPhotos;
+    public static boolean archiveDeletedMessages;
     public static boolean allowScreenCapture;
     public static int lastPauseTime;
     public static boolean isWaitingForPasscodeEnter;
@@ -439,6 +440,7 @@ public class SharedConfig {
                 SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("userconfing", Context.MODE_PRIVATE);
                 SharedPreferences.Editor editor = preferences.edit();
                 editor.putBoolean("saveIncomingPhotos", saveIncomingPhotos);
+                editor.putBoolean("archiveDeletedMessages", archiveDeletedMessages);
                 editor.putString("passcodeHash1", passcodeHash);
                 editor.putString("passcodeSalt", passcodeSalt.length > 0 ? Base64.encodeToString(passcodeSalt, Base64.DEFAULT) : "");
                 editor.putBoolean("appLocked", appLocked);
@@ -518,6 +520,7 @@ public class SharedConfig {
 
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("userconfing", Context.MODE_PRIVATE);
             saveIncomingPhotos = preferences.getBoolean("saveIncomingPhotos", false);
+            archiveDeletedMessages = preferences.getBoolean("archiveDeletedMessages", false);
             passcodeHash = preferences.getString("passcodeHash1", "");
             appLocked = preferences.getBoolean("appLocked", false);
             passcodeType = preferences.getInt("passcodeType", 0);

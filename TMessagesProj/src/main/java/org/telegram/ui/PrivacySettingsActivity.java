@@ -126,6 +126,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
     private int passcodeRow;
     @Keep
     private int autoDeleteMesages;
+    private int deletedMessagesArchiveRow;
+    private int deletedMessagesHistoryRow;
+    private int clearDeletedMessagesRow;
     @Keep
     private int passkeysRow;
     private int sessionsDetailRow;
@@ -316,7 +319,20 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
             if (!view.isEnabled()) {
                 return;
             }
-            if (position == autoDeleteMesages) {
+            if (position == deletedMessagesArchiveRow) {
+                SharedConfig.archiveDeletedMessages = !SharedConfig.archiveDeletedMessages;
+                SharedConfig.saveConfig();
+                listAdapter.notifyItemChanged(position);
+            } else if (position == deletedMessagesHistoryRow) {
+                presentFragment(new DeletedMessagesActivity());
+            } else if (position == clearDeletedMessagesRow) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
+                builder.setTitle(R.string.DeletedMessagesClear);
+                builder.setMessage(R.string.DeletedMessagesClearConfirm);
+                builder.setPositiveButton(R.string.Delete, (dialog, which) -> getMessagesStorage().clearDeletedMessages());
+                builder.setNegativeButton(R.string.Cancel, null);
+                showDialog(builder.create());
+            } else if (position == autoDeleteMesages) {
                 if (getUserConfig().getGlobalTTl() >= 0) {
                     presentFragment(new AutoDeleteMessagesActivity());
                 }
@@ -712,6 +728,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
         securitySectionRow = rowCount++;
         passwordRow = rowCount++;
         autoDeleteMesages = rowCount++;
+        deletedMessagesArchiveRow = rowCount++;
+        deletedMessagesHistoryRow = rowCount++;
+        clearDeletedMessagesRow = rowCount++;
         passcodeRow = rowCount++;
         if (getMessagesController().config.settingsDisplayPasskeys.get() && Build.VERSION.SDK_INT >= 28 && BuildVars.SUPPORTS_PASSKEYS) {
             passkeysRow = rowCount++;
@@ -1021,6 +1040,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
         public boolean isEnabled(RecyclerView.ViewHolder holder) {
             int position = holder.getAdapterPosition();
             return position == passcodeRow || position == passwordRow || position == passkeysRow || position == blockedRow || position == sessionsRow || position == secretWebpageRow || position == webSessionsRow ||
+                    position == deletedMessagesArchiveRow || position == deletedMessagesHistoryRow || position == clearDeletedMessagesRow ||
                     position == groupsRow && !getContactsController().getLoadingPrivacyInfo(ContactsController.PRIVACY_RULES_TYPE_INVITE) ||
                     position == lastSeenRow && !getContactsController().getLoadingPrivacyInfo(ContactsController.PRIVACY_RULES_TYPE_LASTSEEN) ||
                     position == callsRow && !getContactsController().getLoadingPrivacyInfo(ContactsController.PRIVACY_RULES_TYPE_CALLS) ||
@@ -1182,6 +1202,10 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                         textCell.setTextAndValue(getMessagesController().newNoncontactPeersRequirePremiumWithoutOwnpremium && !getMessagesController().starsPaidMessagesAvailable ? getString(R.string.PrivacyMessages) : addPremiumStar(getString(R.string.PrivacyMessages)), value, musicRow != -1);
                     } else if (position == passportRow) {
                         textCell.setText(getString("TelegramPassport", R.string.TelegramPassport), true);
+                    } else if (position == deletedMessagesHistoryRow) {
+                        textCell.setText(getString(R.string.DeletedMessagesHistory), true);
+                    } else if (position == clearDeletedMessagesRow) {
+                        textCell.setText(getString(R.string.DeletedMessagesClear), true);
                     } else if (position == deleteAccountRow) {
                         if (getContactsController().getLoadingDeleteInfo()) {
                             showLoading = true;
@@ -1276,7 +1300,9 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                     break;
                 case 3:
                     TextCheckCell textCheckCell = (TextCheckCell) holder.itemView;
-                    if (position == secretWebpageRow) {
+                    if (position == deletedMessagesArchiveRow) {
+                        textCheckCell.setTextAndCheck(getString(R.string.DeletedMessagesArchive), SharedConfig.archiveDeletedMessages, false);
+                    } else if (position == secretWebpageRow) {
                         textCheckCell.setTextAndCheck(getString("SecretWebPage", R.string.SecretWebPage), getMessagesController().secretWebpagePreview == 1, false);
                     } else if (position == contactsSyncRow) {
                         textCheckCell.setTextAndCheck(getString("SyncContacts", R.string.SyncContacts), newSync, true);
@@ -1397,7 +1423,7 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 return 1;
             } else if (position == securitySectionRow || position == advancedSectionRow || position == privacySectionRow || position == secretSectionRow || position == botsSectionRow || position == contactsSectionRow || position == newChatsHeaderRow) {
                 return 2;
-            } else if (position == secretWebpageRow || position == contactsSyncRow || position == contactsSuggestRow || position == newChatsRow) {
+            } else if (position == deletedMessagesArchiveRow || position == secretWebpageRow || position == contactsSyncRow || position == contactsSuggestRow || position == newChatsRow) {
                 return 3;
             } else if (position == botsAndWebsitesShadowRow) {
                 return 4;

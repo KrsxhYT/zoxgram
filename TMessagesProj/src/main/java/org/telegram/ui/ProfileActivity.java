@@ -653,6 +653,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int infoEndRowEmpty;
     private int phoneRow;
     private int peerIdRow;
+    private int estimatedJoinDateRow;
     private int noteRow;
     private int locationRow;
     private int userInfoRow;
@@ -10445,6 +10446,36 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return chatId != 0;
     }
 
+    private String getEstimatedJoinPeriod() {
+        long id = userId;
+        if (id <= 0) {
+            return null;
+        } else if (id < 50_000_000L) {
+            return "2013-2015";
+        } else if (id < 100_000_000L) {
+            return "2015-2016";
+        } else if (id < 200_000_000L) {
+            return "2016-2017";
+        } else if (id < 300_000_000L) {
+            return "2017-2018";
+        } else if (id < 400_000_000L) {
+            return "2018-2019";
+        } else if (id < 500_000_000L) {
+            return "2019-2020";
+        } else if (id < 600_000_000L) {
+            return "2020-2021";
+        } else if (id < 700_000_000L) {
+            return "2021-2022";
+        } else if (id < 800_000_000L) {
+            return "2022-2023";
+        } else if (id < 900_000_000L) {
+            return "2023-2024";
+        } else if (id < 1_000_000_000L) {
+            return "2024-2025";
+        }
+        return "2025-2026";
+    }
+
     private void updateRowsIds() {
         updateNotifications(false);
 
@@ -10520,6 +10551,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         infoEndRowEmpty = -1;
         phoneRow = -1;
         peerIdRow = -1;
+        estimatedJoinDateRow = -1;
         noteRow = -1;
         userInfoRow = -1;
         locationRow = -1;
@@ -10626,6 +10658,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 numberRow = rowCount++;
                 setUsernameRow = rowCount++;
                 peerIdRow = rowCount++;
+                estimatedJoinDateRow = rowCount++;
                 bioRow = rowCount++;
 
                 settingsSectionRow = rowCount++;
@@ -10719,6 +10752,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     usernameRow = rowCount++;
                 }
                 peerIdRow = rowCount++;
+                estimatedJoinDateRow = rowCount++;
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -13509,6 +13543,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                         detailCell.setTextAndValue(text, LocaleController.getString(isFragmentPhoneNumber ? R.string.AnonymousNumber : R.string.PhoneMobile), false);
                     } else if (position == peerIdRow) {
                         detailCell.setTextAndValue(Long.toString(userId != 0 ? userId : chatId), LocaleController.getString(userId != 0 ? R.string.ProfileUserId : R.string.ProfileChatId), true);
+                    } else if (position == estimatedJoinDateRow) {
+                        detailCell.setTextAndValue(getEstimatedJoinPeriod(), LocaleController.getString(R.string.ProfileEstimatedJoinDate), false);
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;
@@ -14324,7 +14360,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             if (position == infoHeaderRow || position == membersHeaderRow || position == settingsSectionRow2 ||
                     position == numberSectionRow || position == helpHeaderRow || position == debugHeaderRow || position == botPermissionsHeader) {
                 return VIEW_TYPE_HEADER;
-            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == peerIdRow) {
+            } else if (position == phoneRow || position == locationRow || position == numberRow || position == birthdayRow || position == peerIdRow || position == estimatedJoinDateRow) {
                 return VIEW_TYPE_TEXT_DETAIL;
             } else if (position == usernameRow || position == setUsernameRow) {
                 return VIEW_TYPE_TEXT_DETAIL_MULTILINE;
@@ -15724,6 +15760,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             put(++pointer, infoEndRowEmpty, sparseIntArray);
             put(++pointer, phoneRow, sparseIntArray);
             put(++pointer, peerIdRow, sparseIntArray);
+            put(++pointer, estimatedJoinDateRow, sparseIntArray);
             put(++pointer, noteRow, sparseIntArray);
             put(++pointer, locationRow, sparseIntArray);
             put(++pointer, userInfoRow, sparseIntArray);
