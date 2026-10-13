@@ -327,10 +327,10 @@ public class PrivacySettingsActivity extends BaseFragment implements Notificatio
                 presentFragment(new DeletedMessagesActivity());
             } else if (position == clearDeletedMessagesRow) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getParentActivity());
-                builder.setTitle(R.string.DeletedMessagesClear);
-                builder.setMessage(R.string.DeletedMessagesClearConfirm);
-                builder.setPositiveButton(R.string.Delete, (dialog, which) -> getMessagesStorage().clearDeletedMessages());
-                builder.setNegativeButton(R.string.Cancel, null);
+                builder.setTitle(getString(R.string.DeletedMessagesClear));
+                builder.setMessage(getString(R.string.DeletedMessagesClearConfirm));
+                builder.setPositiveButton(getString(R.string.Delete), (dialog, which) -> getMessagesStorage().clearDeletedMessages());
+                builder.setNegativeButton(getString(R.string.Cancel), null);
                 showDialog(builder.create());
             } else if (position == autoDeleteMesages) {
                 if (getUserConfig().getGlobalTTl() >= 0) {

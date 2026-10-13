@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import org.telegram.messenger.DialogObject;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.BaseFragment;
@@ -41,7 +42,7 @@ public class DeletedMessagesActivity extends BaseFragment {
     @Override
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
-        actionBar.setTitle(getString(R.string.DeletedMessagesHistory));
+        actionBar.setTitle(LocaleController.getString(R.string.DeletedMessagesHistory));
         actionBar.setAllowOverlayTitle(true);
 
         FrameLayout frameLayout = new FrameLayout(context);
@@ -91,7 +92,7 @@ public class DeletedMessagesActivity extends BaseFragment {
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
             if (messages.isEmpty()) {
-                ((TextInfoPrivacyCell) holder.itemView).setText(getString(R.string.DeletedMessagesEmpty));
+                ((TextInfoPrivacyCell) holder.itemView).setText(LocaleController.getString(R.string.DeletedMessagesEmpty));
                 return;
             }
 
@@ -100,7 +101,7 @@ public class DeletedMessagesActivity extends BaseFragment {
             if (peerName == null || peerName.isEmpty()) {
                 peerName = Long.toString(record.dialogId);
             }
-            String text = record.text == null || record.text.isEmpty() ? getString(R.string.DeletedMessageMedia) : record.text;
+            String text = record.text == null || record.text.isEmpty() ? LocaleController.getString(R.string.DeletedMessageMedia) : record.text;
             if (text.length() > 180) {
                 text = text.substring(0, 177) + "...";
             }
