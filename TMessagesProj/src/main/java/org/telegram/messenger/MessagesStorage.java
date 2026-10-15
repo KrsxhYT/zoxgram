@@ -15338,6 +15338,7 @@ public class MessagesStorage extends BaseController {
         public int date;
         public int deletedAt;
         public String text;
+        public TLRPC.Message message;
     }
 
     public interface DeletedMessagesLoadedListener {
@@ -15364,6 +15365,7 @@ public class MessagesStorage extends BaseController {
                             record.date = cursor.intValue(2);
                             record.deletedAt = cursor.intValue(3);
                             record.text = message.message;
+                            record.message = message;
                             result.add(record);
                         }
                     } catch (Exception e) {

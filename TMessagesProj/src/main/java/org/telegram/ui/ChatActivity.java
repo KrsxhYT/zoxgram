@@ -632,6 +632,40 @@ public class ChatActivity extends BaseFragment implements
     public ReactionsLayoutInBubble.VisibleReaction getFilterTag() {
         return chatAdapter != null && chatAdapter.isFiltered ? searchingReaction : null;
     }
+
+    private void selectMessagesFromSender(long senderId) {
+        ArrayList<MessageObject> senderMessages = new ArrayList<>();
+        for (int i = messages.size() - 1; i >= 0 && senderMessages.size() < 100; i--) {
+            MessageObject message = messages.get(i);
+            if (message == null || message.isDateObject || message.isDeletedArchive
+                || message.messageOwner == null || message.messageOwner.action != null
+                || !(message.messageOwner.from_id instanceof TLRPC.TL_peerUser)
+                || message.messageOwner.from_id.user_id != senderId) {
+                continue;
+            }
+            senderMessages.add(message);
+        }
+        if (senderMessages.isEmpty()) {
+            return;
+        }
+        for (MessageObject message : senderMessages) {
+            addToSelectedMessages(message, false, false);
+        }
+        createActionMode();
+        actionBar.showActionMode(true, null, null, null, null, null, 0);
+        if (actionsButtonsLayout != null) {
+            actionsButtonsLayout.bringToFront();
+        }
+        bottomViewsVisibilityController.setViewVisible(MESSAGE_ACTION_CONTAINER, true, true);
+        if (chatActivityEnterView != null) {
+            chatActivityEnterView.preventInput = true;
+            chatActivityEnterView.hideBotCommands();
+        }
+        updateActionModeTitle();
+        chatLayoutManager.setCanScrollVertically(true);
+        updateVisibleRows();
+        updatePinnedMessageView(true);
+    }
     public String getFilterQuery() {
         return chatAdapter != null && chatAdapter.isFiltered ? searchingQuery : null;
     }
@@ -873,6 +907,10 @@ public class ChatActivity extends BaseFragment implements
     private SparseArray<ArrayList<MessageObject>> messagesByDaysSorted = new SparseArray<>();
     private LongSparseArray<MessageObject> conversionMessages = new LongSparseArray<>();
     public ArrayList<MessageObject> messages = new ArrayList<>();
+    private boolean deletedMessagesArchiveLoaded;
+    private boolean loadingDeletedMessagesArchive;
+    private final ArrayList<Object[]> pendingMessageLoadNotifications = new ArrayList<>();
+    private final ArrayList<MessageObject> archivedDeletedMessages = new ArrayList<>();
     private SparseArray<MessageObject> waitingForReplies = new SparseArray<>();
     private LongSparseArray<ArrayList<MessageObject>> polls = new LongSparseArray<>();
     private LongSparseArray<MessageObject.GroupedMessages> groupedMessagesMap = new LongSparseArray<>();
@@ -1243,6 +1281,8 @@ public class ChatActivity extends BaseFragment implements
     public final static int OPTION_SUGGESTION_EDIT_PRICE = 111;
     public final static int OPTION_SUGGESTION_EDIT_TIME = 112;
     public final static int OPTION_SUGGESTION_EDIT_MESSAGE = 113;
+    public final static int OPTION_SAVE_TO_SAVED_MESSAGES = 117;
+    public final static int OPTION_SELECT_FROM_SENDER = 118;
     public final static int OPTION_SUGGESTION_ADD_OFFER = 114;
 
     public final static int OPTION_VIEW_STATISTICS = 115;
@@ -1694,6 +1734,10 @@ public class ChatActivity extends BaseFragment implements
         public boolean onItemClick(View view, int position, float x, float y) {
             if (isTryingTextSelection() || hasTextSelection() || inPreviewMode || isInsideContainer) {
                 return false;
+            }
+            if (view instanceof ChatMessageCell && ((ChatMessageCell) view).getMessageObject() != null
+                && ((ChatMessageCell) view).getMessageObject().isDeletedArchive) {
+                return true;
             }
             wasManualScroll = true;
             boolean result = true;
@@ -19407,7 +19451,7 @@ public class ChatActivity extends BaseFragment implements
 
         int type = getMessageType(message);
 
-        if (message != null && message.isAnyGift()) {
+        if (message != null && (message.isDeletedArchive || message.isAnyGift())) {
             return;
         }
         if (type < 2 || type == 20 || type == MessageObject.TYPE_SUGGEST_PHOTO || message != null && (message.type == MessageObject.TYPE_JOINED_CHANNEL || message.type == MessageObject.TYPE_GIFT_STARS) || (message != null && message.isWallpaperAction())) {
@@ -20516,6 +20560,41 @@ public class ChatActivity extends BaseFragment implements
         if (guid != classGuid) {
             return;
         }
+        int notificationMode = (Integer) args[14];
+        if (SharedConfig.archiveDeletedMessages && currentEncryptedChat == null && !isThreadChat()
+            && notificationMode == MODE_DEFAULT && !deletedMessagesArchiveLoaded) {
+            pendingMessageLoadNotifications.add(args);
+            if (!loadingDeletedMessagesArchive) {
+                loadingDeletedMessagesArchive = true;
+                getMessagesStorage().loadDeletedMessages(loadedMessages -> {
+                    loadingDeletedMessagesArchive = false;
+                    deletedMessagesArchiveLoaded = true;
+                    for (MessagesStorage.DeletedMessageRecord record : loadedMessages) {
+                        if (record.message == null || record.message.action != null || record.dialogId != dialog_id && record.dialogId != mergeDialogId) {
+                            continue;
+                        }
+                        TLRPC.Message archivedMessage = record.message;
+                        if (isTopic && MessageObject.getTopicId(currentAccount, archivedMessage, true) != getTopicId()) {
+                            continue;
+                        }
+                        String originalText = TextUtils.isEmpty(archivedMessage.message)
+                            ? LocaleController.getString(R.string.DeletedMessageMedia)
+                            : archivedMessage.message;
+                        archivedMessage.message = LocaleController.formatString(R.string.DeletedMessageInChat, originalText);
+                        archivedMessage.entities = new ArrayList<>();
+                        MessageObject messageObject = new MessageObject(currentAccount, archivedMessage, getMessagesController().getUsers(), false, false);
+                        messageObject.isDeletedArchive = true;
+                        archivedDeletedMessages.add(messageObject);
+                    }
+                    ArrayList<Object[]> pendingNotifications = new ArrayList<>(pendingMessageLoadNotifications);
+                    pendingMessageLoadNotifications.clear();
+                    for (Object[] pendingArgs : pendingNotifications) {
+                        didReceivedNotification_messagesDidLoad(id, account, pendingArgs);
+                    }
+                });
+            }
+            return;
+        }
         int queryLoadIndex = (Integer) args[11];
         boolean doNotRemoveLoadIndex;
         if (queryLoadIndex < 0) {
@@ -20690,6 +20769,43 @@ public class ChatActivity extends BaseFragment implements
         boolean isEnd = (Boolean) args[9];
         int loaded_max_id = (Integer) args[12];
         int loaded_mentions_count = chatWasReset ? 0 : (Integer) args[13];
+
+        if (deletedMessagesArchiveLoaded && mode == MODE_DEFAULT && loadIndex >= 0 && did != 0) {
+            boolean descending = load_type == 1;
+            if (messArr.size() > 1 && messArr.get(0).messageOwner != null && messArr.get(messArr.size() - 1).messageOwner != null) {
+                descending = messArr.get(0).messageOwner.date > messArr.get(messArr.size() - 1).messageOwner.date;
+            }
+            for (MessageObject archivedMessage : archivedDeletedMessages) {
+                if (archivedMessage.getDialogId() != did || isTopic && MessageObject.getTopicId(currentAccount, archivedMessage.messageOwner, true) != getTopicId()
+                    || messagesDict[loadIndex].indexOfKey(archivedMessage.getId()) >= 0) {
+                    continue;
+                }
+                boolean alreadyInBatch = false;
+                for (MessageObject loadedMessage : messArr) {
+                    if (loadedMessage.getId() == archivedMessage.getId()) {
+                        alreadyInBatch = true;
+                        break;
+                    }
+                }
+                if (alreadyInBatch) {
+                    continue;
+                }
+                int insertAt = 0;
+                for (; insertAt < messArr.size(); insertAt++) {
+                    TLRPC.Message loadedMessage = messArr.get(insertAt).messageOwner;
+                    if (loadedMessage == null) {
+                        continue;
+                    }
+                    boolean shouldInsert = descending
+                        ? loadedMessage.date < archivedMessage.messageOwner.date
+                        : loadedMessage.date > archivedMessage.messageOwner.date;
+                    if (shouldInsert) {
+                        break;
+                    }
+                }
+                messArr.add(insertAt, archivedMessage);
+            }
+        }
 
         if (loaded_mentions_count < 0) {
             loaded_mentions_count *= -1;
@@ -26343,6 +26459,21 @@ public class ChatActivity extends BaseFragment implements
                 updateReplyMessageOwners(mid, null);
             }
             if (obj != null) {
+                if (SharedConfig.archiveDeletedMessages && chatMode == MODE_DEFAULT && currentEncryptedChat == null
+                    && !obj.isDeletedArchive && obj.messageOwner != null && obj.messageOwner.action == null
+                    && (obj.getDialogId() == dialog_id || obj.getDialogId() == mergeDialogId)) {
+                    String originalText = TextUtils.isEmpty(obj.messageOwner.message)
+                        ? LocaleController.getString(R.string.DeletedMessageMedia)
+                        : obj.messageOwner.message;
+                    obj.messageOwner.message = LocaleController.formatString(R.string.DeletedMessageInChat, originalText);
+                    obj.messageOwner.entities = new ArrayList<>();
+                    obj.isDeletedArchive = true;
+                    obj.deleted = false;
+                    obj.updateMessageText();
+                    obj.generateCaption();
+                    updated = true;
+                    continue;
+                }
                 if (obj.messageOwner.reply_to != null && !(obj.messageOwner.action instanceof TLRPC.TL_messageActionPinMessage)) {
                     int replyId = obj.getReplyAnyMsgId();
                     if (threadMessageObject != null && threadMessageObject.getId() == replyId) {
@@ -30954,6 +31085,30 @@ public class ChatActivity extends BaseFragment implements
                 selectedObject = message;
                 selectedObjectGroup = groupedMessages;
                 fillMessageMenu(primaryMessage, icons, items, options);
+                boolean canSaveToSavedMessages = selectedObject.messageOwner != null
+                    && !isPeerNoForwards()
+                    && !selectedObject.messageOwner.noforwards
+                    && currentEncryptedChat == null
+                    && chatMode != MODE_SCHEDULED
+                    && getDialogId() != getUserConfig().getClientUserId()
+                    && selectedObject.canForwardMessage()
+                    && !selectedObject.isSponsored();
+                if (canSaveToSavedMessages) {
+                    items.add(LocaleController.getString(R.string.SavedMessages));
+                    options.add(OPTION_SAVE_TO_SAVED_MESSAGES);
+                    icons.add(R.drawable.msg_forward);
+                }
+                TLRPC.Peer sender = selectedObject.messageOwner == null ? null : selectedObject.messageOwner.from_id;
+                if (sender instanceof TLRPC.TL_peerUser && sender.user_id != getUserConfig().getClientUserId()
+                    && !selectedObject.isDeletedArchive && chatMode == MODE_DEFAULT) {
+                    TLRPC.User senderUser = getMessagesController().getUser(sender.user_id);
+                    if (senderUser != null) {
+                        String senderName = UserObject.getUserName(senderUser);
+                        items.add(LocaleController.formatString(R.string.SelectMessagesFromSender, senderName));
+                        options.add(OPTION_SELECT_FROM_SENDER);
+                        icons.add(R.drawable.msg_select);
+                    }
+                }
             }
 
             if (selectedObject != null && selectedObject.isHiddenSensitive() && !selectedObject.isMediaSpoilersRevealed) {
@@ -30965,6 +31120,8 @@ public class ChatActivity extends BaseFragment implements
                         case OPTION_SAVE_TO_DOWNLOADS_OR_MUSIC:
                         case OPTION_SHARE:
                         case OPTION_FORWARD:
+                        case OPTION_SAVE_TO_SAVED_MESSAGES:
+                        case OPTION_SELECT_FROM_SENDER:
                         case OPTION_REPLY:
                             options.remove(i);
                             items.remove(i);
@@ -33373,6 +33530,31 @@ public class ChatActivity extends BaseFragment implements
                 DialogsActivity fragment = new DialogsActivity(args);
                 fragment.setDelegate(this);
                 presentFragment(fragment);
+                break;
+            }
+            case OPTION_SAVE_TO_SAVED_MESSAGES: {
+                ArrayList<MessageObject> messagesToSave = new ArrayList<>();
+                if (selectedObjectGroup != null) {
+                    messagesToSave.addAll(selectedObjectGroup.messages);
+                } else {
+                    messagesToSave.add(selectedObject);
+                }
+                int result = getSendMessagesHelper().sendMessage(
+                    messagesToSave,
+                    getUserConfig().getClientUserId(),
+                    false,
+                    false,
+                    true,
+                    0,
+                    0
+                );
+                AlertsCreator.showSendMediaAlert(result, this, themeDelegate);
+                break;
+            }
+            case OPTION_SELECT_FROM_SENDER: {
+                if (selectedObject.messageOwner.from_id instanceof TLRPC.TL_peerUser) {
+                    selectMessagesFromSender(selectedObject.messageOwner.from_id.user_id);
+                }
                 break;
             }
             case OPTION_COPY: {

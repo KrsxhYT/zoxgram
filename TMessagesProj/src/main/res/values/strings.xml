@@ -6,6 +6,8 @@
     <string name="ProfileChatId">Chat ID</string>
     <string name="ProfileEstimatedJoinDate">Estimated joined (may be inaccurate)</string>
     <string name="OfficialZoxgram">Official Zoxgram</string>
+    <string name="ZoxgramWelcomeTitle">Welcome to Zoxgram</string>
+    <string name="SelectMessagesFromSender">Select up to 100 messages from %s</string>
     <string name="OfficialChannelShortcut">Open official channel</string>
     <string name="DeletedMessagesArchive">Keep deleted messages on this device</string>
     <string name="DeletedMessagesHistory">Deleted messages</string>
@@ -13,6 +15,7 @@
     <string name="DeletedMessagesClearConfirm">This removes the locally archived messages from this device.</string>
     <string name="DeletedMessagesEmpty">No deleted messages have been archived.</string>
     <string name="DeletedMessageMedia">Media message</string>
+    <string name="DeletedMessageInChat">Deleted: %s</string>
     <string name="LanguageName">English</string>
     <string name="English">English</string>
     <string name="LanguageNameInEnglish">English</string>
@@ -184,7 +187,7 @@
     <string name="NoResultFoundFor">No results found for \"%s\".</string>
     <string name="NoResultFoundForTag">No results found for %s</string>
     <string name="NoResultFoundFor2">There were no results for \"%s\".\nTry a new search.</string>
-    <string name="NoChats">Welcome to Telegram</string>
+    <string name="NoChats">Welcome to Zoxgram</string>
     <string name="RecentlyViewed">Recently viewed</string>
     <string name="RecentlyViewedHide">HIDE</string>
     <string name="NoChatsHelp">Start messaging by tapping the pencil button in the bottom right corner.</string>

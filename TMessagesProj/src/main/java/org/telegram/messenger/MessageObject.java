@@ -224,6 +224,7 @@ public class MessageObject {
     public String monthKey;
     public boolean deleted;
     public boolean deletedByThanos;
+    public boolean isDeletedArchive;
     public float audioProgress;
     public float forceSeekTo = -1;
     public int audioProgressMs;
