@@ -211,6 +211,7 @@ import org.telegram.ui.Cells.TextCheckCell;
 import org.telegram.ui.Cells.TextDetailCell;
 import org.telegram.ui.Cells.TextInfoPrivacyCell;
 import org.telegram.ui.Cells.UserCell;
+import org.telegram.ui.Cells.UserInfoCell;
 import org.telegram.ui.Components.AlertsCreator;
 import org.telegram.ui.Components.AnimatedColor;
 import org.telegram.ui.Components.AnimatedEmojiDrawable;
@@ -2137,6 +2138,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             getNotificationCenter().addObserver(this, NotificationCenter.blockedUsersDidLoad);
             getNotificationCenter().addObserver(this, NotificationCenter.botInfoDidLoad);
             getNotificationCenter().addObserver(this, NotificationCenter.userInfoDidLoad);
+            getNotificationCenter().addObserver(this, NotificationCenter.peerSettingsDidLoad);
             getNotificationCenter().addObserver(this, NotificationCenter.privacyRulesUpdated);
             NotificationCenter.getGlobalInstance().addObserver(this, NotificationCenter.reloadInterface);
 
@@ -2146,6 +2148,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 getMediaDataController().loadBotInfo(user.id, user.id, true, classGuid);
             }
             userInfo = getMessagesController().getUserFull(userId);
+            getMessagesController().loadPeerSettings(user, null, true);
             getMessagesController().loadFullUser(getMessagesController().getUser(userId), classGuid, true);
             participantsMap = null;
 
@@ -2402,6 +2405,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             getNotificationCenter().removeObserver(this, NotificationCenter.blockedUsersDidLoad);
             getNotificationCenter().removeObserver(this, NotificationCenter.botInfoDidLoad);
             getNotificationCenter().removeObserver(this, NotificationCenter.userInfoDidLoad);
+            getNotificationCenter().removeObserver(this, NotificationCenter.peerSettingsDidLoad);
             getNotificationCenter().removeObserver(this, NotificationCenter.privacyRulesUpdated);
             NotificationCenter.getGlobalInstance().removeObserver(this, NotificationCenter.reloadInterface);
             getMessagesController().cancelLoadFullUser(userId);
@@ -4482,6 +4486,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 processOnClickOrPress(position, view, x, y);
             } else if (position == peerIdRow) {
                 AndroidUtilities.addToClipboard(Long.toString(userId != 0 ? userId : chatId));
+            } else if (position == estimatedJoinDateRow) {
+                boolean hasRegistrationDate = hasRegistrationDate();
+                String date = getEstimatedJoinPeriod();
+                if (!TextUtils.isEmpty(date)) {
+                    AlertDialog dialog = new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+                        .setTitle(LocaleController.getString(hasRegistrationDate ? R.string.ProfileRegistrationDate : R.string.ProfileEstimatedJoinDate))
+                        .setMessage(date)
+                        .setPositiveButton(LocaleController.getString(R.string.OK), null)
+                        .create();
+                    showDialog(dialog);
+                }
             } else if (position == linkedCommunityRow) {
                 if (currentChat != null) {
                     showDialog(new CommunitySheet(this, currentChat.linked_community_id));
@@ -9228,6 +9243,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 botInfo = info;
                 updateListAnimated(false);
             }
+        } else if (id == NotificationCenter.peerSettingsDidLoad) {
+            if (userId != 0 && (long) args[0] == userId && listAdapter != null && estimatedJoinDateRow >= 0) {
+                listAdapter.notifyItemChanged(estimatedJoinDateRow);
+            }
         } else if (id == NotificationCenter.userInfoDidLoad) {
             final long uid = (Long) args[0];
             if (uid == userId) {
@@ -10447,6 +10466,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     }
 
     private String getEstimatedJoinPeriod() {
+        TLRPC.PeerSettings settings = userId > 0 ? getMessagesController().getPeerSettings(userId) : null;
+        if (settings != null && !TextUtils.isEmpty(settings.registration_month)) {
+            return UserInfoCell.displayDate(settings.registration_month);
+        }
         long id = userId;
         if (id <= 0) {
             return null;
@@ -10474,6 +10497,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             return "2024-2025";
         }
         return "2025-2026";
+    }
+
+    private boolean hasRegistrationDate() {
+        TLRPC.PeerSettings settings = userId > 0 ? getMessagesController().getPeerSettings(userId) : null;
+        return settings != null && !TextUtils.isEmpty(settings.registration_month);
     }
 
     private void updateRowsIds() {
@@ -13544,7 +13572,11 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     } else if (position == peerIdRow) {
                         detailCell.setTextAndValue(Long.toString(userId != 0 ? userId : chatId), LocaleController.getString(userId != 0 ? R.string.ProfileUserId : R.string.ProfileChatId), true);
                     } else if (position == estimatedJoinDateRow) {
-                        detailCell.setTextAndValue(getEstimatedJoinPeriod(), LocaleController.getString(R.string.ProfileEstimatedJoinDate), false);
+                        detailCell.setTextAndValue(
+                            getEstimatedJoinPeriod(),
+                            LocaleController.getString(hasRegistrationDate() ? R.string.ProfileRegistrationDate : R.string.ProfileEstimatedJoinDate),
+                            false
+                        );
                     } else if (position == noteRow) {
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
                         if (userInfo == null) return;

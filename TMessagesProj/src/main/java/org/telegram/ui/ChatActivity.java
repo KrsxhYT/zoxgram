@@ -634,22 +634,127 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void selectMessagesFromSender(long senderId) {
-        ArrayList<MessageObject> senderMessages = new ArrayList<>();
-        for (int i = messages.size() - 1; i >= 0 && senderMessages.size() < 100; i--) {
-            MessageObject message = messages.get(i);
-            if (message == null || message.isDateObject || message.isDeletedArchive
-                || message.messageOwner == null || message.messageOwner.action != null
-                || !(message.messageOwner.from_id instanceof TLRPC.TL_peerUser)
-                || message.messageOwner.from_id.user_id != senderId) {
-                continue;
-            }
-            senderMessages.add(message);
-        }
-        if (senderMessages.isEmpty()) {
+        if (selectingMessagesFromSender) {
             return;
         }
-        for (MessageObject message : senderMessages) {
-            addToSelectedMessages(message, false, false);
+        selectingMessagesFromSender = true;
+        ArrayList<MessageObject> senderMessages = new ArrayList<>();
+        HashSet<String> seenMessages = new HashSet<>();
+        for (MessageObject message : messages) {
+            addSenderMessageIfMatches(message, senderId, senderMessages, seenMessages);
+        }
+        for (MessageObject message : archivedDeletedMessages) {
+            addSenderMessageIfMatches(message, senderId, senderMessages, seenMessages);
+        }
+
+        TLRPC.User sender = getMessagesController().getUser(senderId);
+        if (sender == null) {
+            finishSelectingMessagesFromSender(senderMessages);
+            return;
+        }
+
+        loadSenderMessagesFromPeer(sender, dialog_id, 0, senderMessages, seenMessages, () -> {
+            if (mergeDialogId != 0 && mergeDialogId != dialog_id && !isTopic) {
+                loadSenderMessagesFromPeer(sender, mergeDialogId, 0, senderMessages, seenMessages,
+                    () -> finishSelectingMessagesFromSender(senderMessages));
+            } else {
+                finishSelectingMessagesFromSender(senderMessages);
+            }
+        });
+    }
+
+    private void addSenderMessageIfMatches(MessageObject message, long senderId, ArrayList<MessageObject> senderMessages, HashSet<String> seenMessages) {
+        if (message == null || message.isDateObject || message.messageOwner == null || message.messageOwner.action != null
+            || !(message.messageOwner.from_id instanceof TLRPC.TL_peerUser)
+            || message.messageOwner.from_id.user_id != senderId
+            || isTopic && MessageObject.getTopicId(currentAccount, message.messageOwner, true) != getTopicId()) {
+            return;
+        }
+        String key = message.getDialogId() + ":" + message.getId();
+        if (seenMessages.add(key)) {
+            senderMessages.add(message);
+        }
+    }
+
+    private void loadSenderMessagesFromPeer(TLRPC.User sender, long peerDialogId, int offsetId,
+            ArrayList<MessageObject> senderMessages, HashSet<String> seenMessages, Runnable onComplete) {
+        TLRPC.InputPeer peer = getMessagesController().getInputPeer(peerDialogId);
+        TLRPC.InputPeer fromPeer = MessagesController.getInputPeer(sender);
+        if (getParentActivity() == null) {
+            selectingMessagesFromSender = false;
+            return;
+        }
+        if (peer == null || fromPeer == null) {
+            selectingMessagesFromSender = false;
+            onComplete.run();
+            return;
+        }
+
+        TLRPC.TL_messages_search request = new TLRPC.TL_messages_search();
+        request.peer = peer;
+        request.from_id = fromPeer;
+        request.flags |= 1;
+        if (isTopic && getTopicId() != 0) {
+            request.top_msg_id = (int) getTopicId();
+            request.flags |= 2;
+        }
+        request.q = "";
+        request.filter = new TLRPC.TL_inputMessagesFilterEmpty();
+        request.offset_id = offsetId;
+        request.limit = 100;
+        int requestId = getConnectionsManager().sendRequest(request, (response, error) ->
+            AndroidUtilities.runOnUIThread(() -> {
+                if (getParentActivity() == null) {
+                    selectingMessagesFromSender = false;
+                    return;
+                }
+                if (error != null || !(response instanceof TLRPC.messages_Messages)) {
+                    selectingMessagesFromSender = false;
+                    if (error != null) {
+                        BulletinFactory.showError(error);
+                    }
+                    return;
+                }
+
+                TLRPC.messages_Messages result = (TLRPC.messages_Messages) response;
+                getMessagesController().putUsers(result.users, false);
+                getMessagesController().putChats(result.chats, false);
+                int oldestMessageId = 0;
+                for (TLRPC.Message message : result.messages) {
+                    if (message.id > 0 && (oldestMessageId == 0 || message.id < oldestMessageId)) {
+                        oldestMessageId = message.id;
+                    }
+                    MessageObject messageObject = new MessageObject(currentAccount, message,
+                        getMessagesController().getUsers(), getMessagesController().getChats(), false, true);
+                    addSenderMessageIfMatches(messageObject, sender.id, senderMessages, seenMessages);
+                }
+                if (result.messages.size() == request.limit && oldestMessageId > 0 && oldestMessageId != offsetId) {
+                    loadSenderMessagesFromPeer(sender, peerDialogId, oldestMessageId, senderMessages, seenMessages, onComplete);
+                } else {
+                    onComplete.run();
+                }
+            })
+        , ConnectionsManager.RequestFlagFailOnServerErrors);
+        getConnectionsManager().bindRequestToGuid(requestId, classGuid);
+    }
+
+    private void finishSelectingMessagesFromSender(ArrayList<MessageObject> senderMessages) {
+        selectingMessagesFromSender = false;
+        addingSenderSelection = true;
+        boolean addedAny = false;
+        try {
+            for (MessageObject message : senderMessages) {
+                int index = message.getDialogId() == dialog_id ? 0 : 1;
+                if (selectedMessagesIds[index].indexOfKey(message.getId()) < 0) {
+                    addToSelectedMessages(message, false, false);
+                    addedAny = true;
+                }
+            }
+        } finally {
+            addingSenderSelection = false;
+        }
+        if (!addedAny) {
+            return;
         }
         createActionMode();
         actionBar.showActionMode(true, null, null, null, null, null, 0);
@@ -883,6 +988,8 @@ public class ChatActivity extends BaseFragment implements
     private SparseArray<MessageObject>[] selectedMessagesCanCopyIds = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
     private SparseArray<MessageObject>[] selectedMessagesCanStarIds = new SparseArray[]{new SparseArray<>(), new SparseArray<>()};
     private boolean hasUnfavedSelected;
+    private boolean selectingMessagesFromSender;
+    private boolean addingSenderSelection;
     private int cantDeleteMessagesCount;
     private int cantForwardMessagesCount;
     private int canForwardMessagesCount;
@@ -19171,7 +19278,7 @@ public class ChatActivity extends BaseFragment implements
                     }
                 }
             } else {
-                if (selectedMessagesIds[0].size() + selectedMessagesIds[1].size() >= 100) {
+                if (!addingSenderSelection && selectedMessagesIds[0].size() + selectedMessagesIds[1].size() >= 100) {
                     AndroidUtilities.shakeView(selectedMessagesCountTextView);
                     Vibrator vibrator = (Vibrator) ApplicationLoader.applicationContext.getSystemService(Context.VIBRATOR_SERVICE);
                     if (vibrator != null) {
@@ -31100,7 +31207,7 @@ public class ChatActivity extends BaseFragment implements
                 }
                 TLRPC.Peer sender = selectedObject.messageOwner == null ? null : selectedObject.messageOwner.from_id;
                 if (sender instanceof TLRPC.TL_peerUser && sender.user_id != getUserConfig().getClientUserId()
-                    && !selectedObject.isDeletedArchive && chatMode == MODE_DEFAULT) {
+                    && !selectedObject.isDeletedArchive && currentEncryptedChat == null && chatMode == MODE_DEFAULT) {
                     TLRPC.User senderUser = getMessagesController().getUser(sender.user_id);
                     if (senderUser != null) {
                         String senderName = UserObject.getUserName(senderUser);

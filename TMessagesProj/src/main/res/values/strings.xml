@@ -7,7 +7,8 @@
     <string name="ProfileEstimatedJoinDate">Estimated joined (may be inaccurate)</string>
     <string name="OfficialZoxgram">Official Zoxgram</string>
     <string name="ZoxgramWelcomeTitle">Welcome to Zoxgram</string>
-    <string name="SelectMessagesFromSender">Select up to 100 messages from %s</string>
+    <string name="SelectMessagesFromSender">Select all messages from %s</string>
+    <string name="ProfileRegistrationDate">Registration date</string>
     <string name="OfficialChannelShortcut">Open official channel</string>
     <string name="DeletedMessagesArchive">Keep deleted messages on this device</string>
     <string name="DeletedMessagesHistory">Deleted messages</string>

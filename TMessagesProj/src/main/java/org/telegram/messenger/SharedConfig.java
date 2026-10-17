@@ -520,7 +520,7 @@ public class SharedConfig {
 
             SharedPreferences preferences = ApplicationLoader.applicationContext.getSharedPreferences("userconfing", Context.MODE_PRIVATE);
             saveIncomingPhotos = preferences.getBoolean("saveIncomingPhotos", false);
-            archiveDeletedMessages = preferences.getBoolean("archiveDeletedMessages", false);
+            archiveDeletedMessages = preferences.getBoolean("archiveDeletedMessages", true);
             passcodeHash = preferences.getString("passcodeHash1", "");
             appLocked = preferences.getBoolean("appLocked", false);
             passcodeType = preferences.getInt("passcodeType", 0);
