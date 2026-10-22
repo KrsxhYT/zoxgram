@@ -1,0 +1,130 @@
+
+Now more additional features -
+
+Download Your Voice Messages
+
+Tired of searching for important voice messages? With Zoxgram, you can now save and organize your voice messages effortlessly, keeping them accessible whenever you need them 🗂
+
+How to Download Voice Messages:
+
+1️⃣ Open Zoxgram and navigate to the chat with the voice message.
+2️⃣ Long press the voice message you want to save.
+3️⃣ Tap the Download button.  
+4️⃣ Done! The message is saved to your device.
+
+2.
+Profile Notes  
+
+📝 Keep track of important details with Profile Notes. This handy feature allows you to create personalized notes and reminders for any of your Telegram contacts.  
+
+💡 Add custom details, key insights, or helpful prompts to each contact's profile, so you never forget what matters most during your conversations.
+
+🔐 Your notes are visible only to you and are stored exclusively on the device where you create them.
+
+Time To Personalize Profiles With A Note!
+
+User will set a timer like expire timer like
+1 day, 5days, 7days or never
+
+3.
+❤️ Speech2Text
+
+Speech 2 Text. Experience The Convenience Of Voice-To-Text Transcription.
+
+📲 Easily and accurately transcribe any voice message and come back to reread it anytime!
+
+Tap on the ->A button on the voice message to view the text.
+
+4.
+❤️ Unlimited Accounts
+
+👥 Manage Unlimited Accounts. Set up as many accounts as you’d like and experience the convenience of having all of your accounts in one place, eliminating the need for multiple devices or constant logins and logouts.
+
+
+4. Regdate fix -
+Profile pr regdate me show kro "Get Registered Date" on click using jagaha reg date show kro
+
+Notes sbko show hoga sbki profile pr Just like bio !
+
+
+In firebase save user database like
+Give per user one unique id ZoxId (6 numbers ka) nvr reset that if (like tg chat id)
+In firebase make db like
+User ke ZoxId me hi sb db huga like notes (abhi ke liye notes hi more in future)
+
+6.
+Group Call Recorder
+
+Turn your calls into a knowledge base with Zoxgram Group Call Recorder.
+
+🎙 Capture every idea & decision.
+📂 Automatic archive in Saved Messages.
+✅ Perfect for meetings, brainstorming & follow-ups.
+
+How to use:
+
+🟠 Start a group call.
+🟠 Tap Record in one click.
+🟠 Once finished, your recording is saved automatically in Saved Messages.
+
+7.
+Save & Restore Your Telegram Sessions
+
+Now you can backup, restore, and transfer your accounts easily. Never lose your sessions again!
+ 
+🔹 Auto-Backup – Sessions sync securely in the cloud. Sign in with the same Apple ID, and they restore automatically.
+🔹 Export & Import – Move accounts between devices using a backup file.  
+🔹 Device Switching – Change phones or reinstall Nicegram without losing accounts.
+
+How It Works?
+
+Go to Settings → Zoxgram → Accounts and choose one of the following options:  
+
+☁️ Import From Cloud – Restores your saved sessions from iCloud.  
+📤 Export To File – Creates a local backup file to transfer accounts manually. 
+📥  Import From File – Transfer the backup file to your device (AirDrop, email, cloud storage).  
+🗑️ Delete Sessions – Removes all active sessions from Zoxgram.  
+
+Use iCloud + local file for extra security!
+
+8.
+Circle Video Conversion
+
+Transform your mobile videos into engaging "Circle Videos" with the Zoxgram feature. Each circle is a streamlined 1-minute version of the original, perfect for sharing 📲
+
+To transform your pre-recorded video into a circle one:
+
+🔸 Pick a video 
+🔸 Hit "Send as Rounded Video" 
+🔸 Share in chats
+
+Simplify your story-sharing with this unique format. Ready to circle? Tap, select, and share with Zoxgram now! 👌
+
+9.
+Make Zoxgram Settings 
+
+Usme user change kr payega like
+Show chat id ? On/off,
+Show notes? On/off
+Show reg date? On/off
+
+Account vala vo,
+
+Etc etc settings 
+
+Ye settings user ko
+Telegram settings menu me jayegaa to uper dikega Zoxgram Settings krke
+
+
+Bs ye add krde and firebase firestore rules bta de 
+
+Change app logo to this logo.png 
+
+And in the main menu after login vaha uper telegram likha aa rha use Zoxgram kr!!
+
+Use custom theme like
+https://github.com/nicegram/Nicegram-Android/blob/main/nicegram-features/src/main/assets/goldietheme.attheme
+
+This but this is an gold theme so replace gold or yellow etc colors to red 
+Don't change anything other colors Just gold or yellow 
+
