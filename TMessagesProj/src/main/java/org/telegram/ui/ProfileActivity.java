@@ -9065,6 +9065,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             checkCanSendStoryForPosting();
         } else if (id == NotificationCenter.updateInterfaces) {
             int mask = (Integer) args[0];
+            if ((mask & MessagesController.UPDATE_MASK_ZOXGRAM_PROFILE) != 0) {
+                updateListAnimated(false);
+            }
             boolean infoChanged = (mask & MessagesController.UPDATE_MASK_AVATAR) != 0 || (mask & MessagesController.UPDATE_MASK_NAME) != 0 || (mask & MessagesController.UPDATE_MASK_STATUS) != 0 || (mask & MessagesController.UPDATE_MASK_EMOJI_STATUS) != 0;
             if (userId != 0) {
                 if (infoChanged) {
@@ -10685,8 +10688,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 numberSectionRow = rowCount++;
                 numberRow = rowCount++;
                 setUsernameRow = rowCount++;
-                peerIdRow = rowCount++;
-                estimatedJoinDateRow = rowCount++;
+                if (getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CHAT_ID, true)) {
+                    peerIdRow = rowCount++;
+                }
+                if (getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_REGISTRATION_DATE, true)) {
+                    estimatedJoinDateRow = rowCount++;
+                }
                 bioRow = rowCount++;
 
                 settingsSectionRow = rowCount++;
@@ -10779,8 +10786,12 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 if (user != null && username != null) {
                     usernameRow = rowCount++;
                 }
-                peerIdRow = rowCount++;
-                estimatedJoinDateRow = rowCount++;
+                if (getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CHAT_ID, true)) {
+                    peerIdRow = rowCount++;
+                }
+                if (getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_REGISTRATION_DATE, true)) {
+                    estimatedJoinDateRow = rowCount++;
+                }
                 if (userInfo != null) {
                     if (userInfo.birthday != null) {
                         birthdayRow = rowCount++;
@@ -10791,7 +10802,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (userInfo.business_location != null) {
                         bizLocationRow = rowCount++;
                     }
-                    if (userInfo.note != null) {
+                    if (userInfo.note != null && getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CONTACT_NOTES, true)) {
                         noteRow = rowCount++;
                     }
                 }
@@ -10905,7 +10916,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                 }
             }
             usernameRow = rowCount++;
-            peerIdRow = rowCount++;
+            if (getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CHAT_ID, true)) {
+                peerIdRow = rowCount++;
+            }
             if (actionsView == null) {
                 notificationsSimpleRow = rowCount++;
             }
@@ -10941,7 +10954,9 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     usernameRow = rowCount++;
                 }
             }
-            peerIdRow = rowCount++;
+            if (getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CHAT_ID, true)) {
+                peerIdRow = rowCount++;
+            }
             if (emptyRow < 0 && emptyRow2 < 0) {
                 if (hasMusic || peerColor != null || actionsView == null) {
                     emptyRow2 = rowCount++;

@@ -1,0 +1,65 @@
+// Zoxgram profile data template.
+// The app must receive a Firebase Auth custom claim named "zox_id" from a
+// trusted backend after the Telegram account has been verified. Never mint this
+// claim from a client-supplied ID. Six-digit ZoxIDs must be allocated uniquely
+// by that backend; Firestore rules cannot guarantee uniqueness on their own.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsZoxId(zoxId) {
+      return signedIn()
+        && request.auth.token.zox_id == zoxId
+        && zoxId.matches('^[0-9]{6}$');
+    }
+
+    match /profiles/{zoxId} {
+      allow read: if signedIn();
+      allow create, update: if ownsZoxId(zoxId)
+        && request.resource.data.keys().hasAll(['zoxId'])
+        && request.resource.data.keys().hasOnly(['zoxId'])
+        && request.resource.data.zoxId == zoxId;
+      allow delete: if false;
+
+      match /notes/{noteId} {
+        function validNote() {
+          return request.resource.data.keys().hasOnly([
+              'text', 'expiryOption', 'expiresAt', 'updatedAt'
+            ])
+            && request.resource.data.keys().hasAll([
+              'text', 'expiryOption', 'expiresAt', 'updatedAt'
+            ])
+            && request.resource.data.text is string
+            && request.resource.data.text.size() <= 1200
+            && request.resource.data.expiryOption in ['1d', '5d', '7d', 'never']
+            && request.resource.data.updatedAt is timestamp
+            && request.resource.data.updatedAt <= request.time
+            && (
+              request.resource.data.expiryOption == 'never'
+                ? request.resource.data.expiresAt == null
+                : request.resource.data.expiresAt is timestamp
+                  && request.resource.data.expiresAt > request.time
+            );
+        }
+
+        allow read: if signedIn();
+        allow create, update: if noteId == 'public'
+          && ownsZoxId(zoxId)
+          && validNote();
+        allow delete: if noteId == 'public' && ownsZoxId(zoxId);
+      }
+    }
+
+    // ID allocation/mapping is server-owned. Clients cannot claim or rewrite IDs.
+    match /zoxIdClaims/{zoxId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

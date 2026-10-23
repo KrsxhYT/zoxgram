@@ -10,6 +10,13 @@
     <string name="SelectMessagesFromSender">Select all messages from %s</string>
     <string name="ProfileRegistrationDate">Registration date</string>
     <string name="OfficialChannelShortcut">Open official channel</string>
+    <string name="ZoxgramSettings">Zoxgram Settings</string>
+    <string name="ZoxgramSettingsSummary">Choose which profile details appear</string>
+    <string name="ZoxgramProfileDetails">Profile details</string>
+    <string name="ZoxgramShowChatId">Show user and chat IDs</string>
+    <string name="ZoxgramShowRegistrationDate">Show registration date or estimate</string>
+    <string name="ZoxgramShowContactNotes">Show your private contact notes</string>
+    <string name="ZoxgramSettingsPrivacyInfo">Contact notes remain private to you. Registration dates may be estimates when Telegram does not provide an exact date.</string>
     <string name="DeletedMessagesArchive">Keep deleted messages on this device</string>
     <string name="DeletedMessagesHistory">Deleted messages</string>
     <string name="DeletedMessagesClear">Clear deleted messages</string>

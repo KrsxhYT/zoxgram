@@ -4010,6 +4010,17 @@ public class Theme {
         themes.add(themeInfo);
         themesDict.put("Night", themeInfo);
 
+        themeInfo = new ThemeInfo();
+        themeInfo.name = "Zoxgram Red";
+        themeInfo.assetName = "zoxgram_red.attheme";
+        themeInfo.previewBackgroundColor = 0xff151515;
+        themeInfo.previewInColor = 0xff1f1f1f;
+        themeInfo.previewOutColor = 0xffcf7373;
+        themeInfo.isDark = ThemeInfo.DARK;
+        themeInfo.sortIndex = 0;
+        themes.add(themeInfo);
+        themesDict.put(themeInfo.name, themeInfo);
+
         String themesString = themeConfig.getString("themes2", null);
 
         int remoteVersion = themeConfig.getInt("remote_version", 0);
@@ -4061,7 +4072,9 @@ public class Theme {
             final ThemeInfo themeDarkBlue = themesDict.get("Dark Blue");
 
             String theme = preferences.getString("theme", null);
-            if ("Default".equals(theme)) {
+            if (theme == null) {
+                applyingTheme = themesDict.get("Zoxgram Red");
+            } else if ("Default".equals(theme)) {
                 applyingTheme = themesDict.get("Blue");
                 applyingTheme.currentAccentId = DEFALT_THEME_ACCENT_ID;
             } else if ("Dark".equals(theme)) {

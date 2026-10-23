@@ -96,6 +96,9 @@
 
     <application
         android:name="org.telegram.messenger.ApplicationLoader"
+        android:icon="@mipmap/zoxgram_icon"
+        android:roundIcon="@mipmap/zoxgram_icon"
+        android:label="@string/AppName"
         android:allowBackup="true"
         android:restoreAnyVersion="true"
         android:backupAgent=".BackupAgent"
