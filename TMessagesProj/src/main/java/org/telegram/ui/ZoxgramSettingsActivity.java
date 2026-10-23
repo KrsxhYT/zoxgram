@@ -3,6 +3,8 @@ package org.telegram.ui;
 import android.content.SharedPreferences;
 import android.view.View;
 
+import static org.telegram.messenger.LocaleController.getString;
+
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
