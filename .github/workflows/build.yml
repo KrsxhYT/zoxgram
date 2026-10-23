@@ -108,10 +108,21 @@ jobs:
 
       - name: Build signed APK
         run: |
+          set -o pipefail
           ./gradlew \
             :TMessagesProj_App:assembleAfatRelease \
             --no-daemon \
-            --stacktrace
+            --stacktrace 2>&1 | tee build.log
+
+      - name: Show build errors
+        if: failure()
+        run: |
+          {
+            grep -E "\.java:[0-9]+: error" build.log
+            grep -E "What went wrong|Execution failed|AAPT: error|error: " build.log
+          } | awk '!seen[$0]++' | head -10 | while IFS= read -r line; do
+            echo "::error::${line:0:500}"
+          done
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
