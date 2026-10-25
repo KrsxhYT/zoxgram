@@ -164,6 +164,7 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.SvgHelper;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.UserObject;
+import org.telegram.messenger.ZoxgramNoteRepository;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.browser.Browser;
 import org.telegram.tgnet.ConnectionsManager;
@@ -656,6 +657,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     private int peerIdRow;
     private int estimatedJoinDateRow;
     private int noteRow;
+    private ZoxgramNoteRepository.Note zoxgramNote;
+    private boolean zoxgramNoteLoadStarted;
+    private boolean zoxgramNoteLoadFailed;
+    private Runnable zoxgramNoteExpiryRunnable;
     private int locationRow;
     private int userInfoRow;
     private int channelInfoRow;
@@ -2360,6 +2365,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onFragmentDestroy() {
         super.onFragmentDestroy();
+        if (zoxgramNoteExpiryRunnable != null) {
+            AndroidUtilities.cancelRunOnUIThread(zoxgramNoteExpiryRunnable);
+            zoxgramNoteExpiryRunnable = null;
+        }
         if (sharedMediaLayout != null) {
             sharedMediaLayout.onDestroy();
         }
@@ -7421,7 +7430,8 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
             }
             return true;
         } else if (position == noteRow) {
-
+            openZoxgramNoteEditor();
+            return true;
         } else if (position == phoneRow || position == numberRow) {
             if (editRow(view, position)) return true;
 
@@ -9066,6 +9076,10 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         } else if (id == NotificationCenter.updateInterfaces) {
             int mask = (Integer) args[0];
             if ((mask & MessagesController.UPDATE_MASK_ZOXGRAM_PROFILE) != 0) {
+                zoxgramNote = ZoxgramNoteRepository.getCachedNote(userId);
+                zoxgramNoteLoadStarted = ZoxgramNoteRepository.isLoaded(userId);
+                zoxgramNoteLoadFailed = false;
+                scheduleZoxgramNoteExpiry();
                 updateListAnimated(false);
             }
             boolean infoChanged = (mask & MessagesController.UPDATE_MASK_AVATAR) != 0 || (mask & MessagesController.UPDATE_MASK_NAME) != 0 || (mask & MessagesController.UPDATE_MASK_STATUS) != 0 || (mask & MessagesController.UPDATE_MASK_EMOJI_STATUS) != 0;
@@ -10507,8 +10521,96 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         return settings != null && !TextUtils.isEmpty(settings.registration_month);
     }
 
+    private void loadZoxgramNote() {
+        zoxgramNoteLoadStarted = true;
+        zoxgramNote = ZoxgramNoteRepository.getCachedNote(userId);
+        zoxgramNoteLoadFailed = false;
+        scheduleZoxgramNoteExpiry();
+        ZoxgramNoteRepository.load(userId, new ZoxgramNoteRepository.NoteCallback() {
+            @Override
+            public void onSuccess(ZoxgramNoteRepository.Note note) {
+                zoxgramNote = note;
+                zoxgramNoteLoadFailed = false;
+                scheduleZoxgramNoteExpiry();
+                if (fragmentView != null) {
+                    updateListAnimated(false);
+                }
+            }
+
+            @Override
+            public void onError(String message) {
+                zoxgramNoteLoadFailed = true;
+                if (fragmentView != null) {
+                    updateListAnimated(false);
+                }
+            }
+        });
+    }
+
+    private void scheduleZoxgramNoteExpiry() {
+        if (zoxgramNoteExpiryRunnable != null) {
+            AndroidUtilities.cancelRunOnUIThread(zoxgramNoteExpiryRunnable);
+            zoxgramNoteExpiryRunnable = null;
+        }
+        if (zoxgramNote == null || zoxgramNote.expiresAtMillis <= 0) {
+            return;
+        }
+        ZoxgramNoteRepository.Note scheduledNote = zoxgramNote;
+        zoxgramNoteExpiryRunnable = () -> {
+            zoxgramNoteExpiryRunnable = null;
+            if (zoxgramNote != scheduledNote) {
+                return;
+            }
+            if (!scheduledNote.isExpired()) {
+                scheduleZoxgramNoteExpiry();
+                return;
+            }
+            zoxgramNote = null;
+            zoxgramNoteLoadStarted = true;
+            zoxgramNoteLoadFailed = false;
+            updateListAnimated(false);
+            ZoxgramNoteRepository.delete(userId, new ZoxgramNoteRepository.SaveCallback() {
+                @Override
+                public void onSuccess() {
+                    updateListAnimated(false);
+                }
+
+                @Override
+                public void onError(String message) {
+                    updateListAnimated(false);
+                }
+            });
+        };
+        AndroidUtilities.runOnUIThread(
+                zoxgramNoteExpiryRunnable,
+                Math.max(0, scheduledNote.expiresAtMillis - System.currentTimeMillis())
+        );
+    }
+
     private void updateRowsIds() {
         updateNotifications(false);
+        boolean showZoxgramNotes = userId > 0
+                && userId != getUserConfig().getClientUserId()
+                && getMessagesController().getMainSettings().getBoolean(
+                        ZoxgramSettingsActivity.KEY_SHOW_CONTACT_NOTES,
+                        true
+                );
+        if (showZoxgramNotes) {
+            ZoxgramNoteRepository.Note cachedNote = ZoxgramNoteRepository.getCachedNote(userId);
+            if (cachedNote != null) {
+                zoxgramNote = cachedNote;
+                zoxgramNoteLoadStarted = true;
+                zoxgramNoteLoadFailed = false;
+                scheduleZoxgramNoteExpiry();
+            } else if (ZoxgramNoteRepository.isLoaded(userId)) {
+                zoxgramNote = null;
+                zoxgramNoteLoadStarted = true;
+                zoxgramNoteLoadFailed = false;
+                scheduleZoxgramNoteExpiry();
+            } else if (!zoxgramNoteLoadStarted) {
+                loadZoxgramNote();
+            }
+        }
 
         boolean hasJoinRow = false;
 
@@ -10802,9 +10904,13 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                     if (userInfo.business_location != null) {
                         bizLocationRow = rowCount++;
                     }
-                    if (userInfo.note != null && getMessagesController().getMainSettings().getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CONTACT_NOTES, true)) {
-                        noteRow = rowCount++;
-                    }
+                }
+                if (userId != getUserConfig().getClientUserId()
+                        && getMessagesController().getMainSettings().getBoolean(
+                                ZoxgramSettingsActivity.KEY_SHOW_CONTACT_NOTES,
+                                true
+                        )) {
+                    noteRow = rowCount++;
                 }
                 if (actionsView == null && userId != getUserConfig().getClientUserId()) {
                     notificationsRow = rowCount++;
@@ -13593,18 +13699,17 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
                             false
                         );
                     } else if (position == noteRow) {
-                        final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
-                        if (userInfo == null) return;
-                        TLRPC.TL_textWithEntities note = userInfo.note;
                         CharSequence text;
-                        if (!UserConfig.getInstance(currentAccount).isPremium()) {
-                            text = MessageObject.formatTextWithEntities(MessageObject.removeLinks(note));
+                        if (zoxgramNote != null) {
+                            SpannableStringBuilder noteText = new SpannableStringBuilder(zoxgramNote.text);
+                            AndroidUtilities.addLinksSafe(noteText, Linkify.WEB_URLS, false, false);
+                            text = noteText;
+                        } else if (zoxgramNoteLoadFailed) {
+                            text = getString(R.string.ZoxgramNoteSignInRequired);
+                        } else if (!ZoxgramNoteRepository.isLoaded(userId)) {
+                            text = getString(R.string.Loading);
                         } else {
-                            text = MessageObject.formatTextWithEntities(note);
-                            if (!(text instanceof SpannableStringBuilder)) {
-                                text = new SpannableStringBuilder(text);
-                            }
-                            AndroidUtilities.addLinksSafe((SpannableStringBuilder) text, Linkify.WEB_URLS, false, false);
+                            text = getString(R.string.ZoxgramNoteEmpty);
                         }
                         detailCell.setTextAndValue(
                             text,
@@ -16345,46 +16450,74 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         final ItemOptions o = ItemOptions.makeOptions(this, view);
         o.setScrimViewBackground(listView.getClipBackground(view));
         o.setLongPressSelectionEnabled(false);
-        o.addIf(userInfo != null, R.drawable.msg_copy, getString(R.string.Copy), () -> {
-            if (userInfo == null) return;
-            final CharSequence text = MessageObject.formatTextWithEntities(userInfo.note, false);
-            AndroidUtilities.addToClipboard(text);
+        o.addIf(zoxgramNote != null, R.drawable.msg_copy, getString(R.string.Copy), () -> {
+            if (zoxgramNote == null) return;
+            AndroidUtilities.addToClipboard(zoxgramNote.text);
             BulletinFactory.of(ProfileActivity.this)
                     .createCopyBulletin(LocaleController.getString(R.string.TextCopied))
                     .show();
         });
-        o.add(R.drawable.msg_edit, getString(R.string.Edit), () -> {
-            final Bundle args = new Bundle();
-            args.putLong("user_id", userId);
-            args.putBoolean("focus_notes", true);
-            presentFragment(new ContactAddActivity(args, resourcesProvider));
-        });
-        o.add(R.drawable.msg_delete, getString(R.string.Remove), true, () -> {
+        o.add(R.drawable.msg_edit, getString(R.string.Edit), this::openZoxgramNoteEditor);
+        if (zoxgramNote != null) {
+            o.add(R.drawable.msg_delete, getString(R.string.Remove), true, () -> {
             new AlertDialog.Builder(getContext(), resourcesProvider)
                 .setTitle(getString(R.string.ProfileNotesRemoveTitle))
-                .setMessage(getString(R.string.ProfileNotesRemoveText))
+                .setMessage(getString(R.string.ZoxgramRemoveNoteConfirm))
                 .setPositiveButton(getString(R.string.Delete), (di, w) -> {
-                    final TLRPC.UserFull userInfo = getMessagesController().getUserFull(userId);
-                    if (userInfo != null) {
-                        userInfo.flags2 &=~ TLObject.FLAG_22;
-                        userInfo.note = null;
-                        getMessagesStorage().updateUserInfo(userInfo, true);
-                    }
+                    ZoxgramNoteRepository.delete(userId, new ZoxgramNoteRepository.SaveCallback() {
+                        @Override
+                        public void onSuccess() {
+                            zoxgramNote = null;
+                            zoxgramNoteLoadStarted = true;
+                            zoxgramNoteLoadFailed = false;
+                            clearLegacyContactNote();
+                            updateRowsIds();
+                            if (listAdapter != null) {
+                                listAdapter.notifyItemChanged(position);
+                            }
+                        }
 
-                    final TLRPC.TL_updateContactNote req = new TLRPC.TL_updateContactNote();
-                    req.id = getMessagesController().getInputUser(userId);
-                    req.note = new TLRPC.TL_textWithEntities();
-                    getConnectionsManager().sendRequest(req, null);
-
-                    updateRowsIds();
-                    listAdapter.notifyItemRemoved(position);
+                        @Override
+                        public void onError(String message) {
+                            new AlertDialog.Builder(getContext(), resourcesProvider)
+                                    .setTitle(getString(R.string.ZoxgramCloudAccount))
+                                    .setMessage(message)
+                                    .setPositiveButton(getString(R.string.OK), null)
+                                    .show();
+                        }
+                    });
                 })
                 .setNegativeButton(getString(R.string.Cancel), null)
                 .makeRed(AlertDialog.BUTTON_POSITIVE)
                 .show();
-        });
+            });
+        }
         o.show();
         return true;
+    }
+
+    private void clearLegacyContactNote() {
+        TLRPC.UserFull full = getMessagesController().getUserFull(userId);
+        boolean hasLegacyNote = full != null && full.note != null;
+        if (hasLegacyNote) {
+            full.flags2 &= ~TLObject.FLAG_22;
+            full.note = null;
+            getMessagesStorage().updateUserInfo(full, true);
+        }
+        if (!hasLegacyNote) {
+            return;
+        }
+        TLRPC.TL_updateContactNote request = new TLRPC.TL_updateContactNote();
+        request.id = getMessagesController().getInputUser(userId);
+        request.note = new TLRPC.TL_textWithEntities();
+        getConnectionsManager().sendRequest(request, null);
+    }
+
+    private void openZoxgramNoteEditor() {
+        Bundle args = new Bundle();
+        args.putLong("user_id", userId);
+        args.putBoolean("focus_notes", true);
+        presentFragment(new ContactAddActivity(args, resourcesProvider));
     }
 
     private boolean editRow(View view, int position) {

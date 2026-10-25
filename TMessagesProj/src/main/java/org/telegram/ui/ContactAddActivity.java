@@ -46,6 +46,7 @@ import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.SendMessagesHelper;
 import org.telegram.messenger.UserObject;
+import org.telegram.messenger.ZoxgramNoteRepository;
 import org.telegram.messenger.utils.PhotoUtilities;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLObject;
@@ -100,6 +101,8 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
     private long user_id;
     private boolean addContact;
     private boolean focusNotes;
+    private String noteExpiryOption = ZoxgramNoteRepository.EXPIRY_NEVER;
+    private boolean noteSaveInProgress;
     private boolean needAddException;
     private String phone;
 
@@ -185,6 +188,8 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
         actionBar.setAllowOverlayTitle(true);
         if (addContact) {
             actionBar.setTitle(getString(R.string.NewContact));
+        } else if (focusNotes) {
+            actionBar.setTitle(getString(R.string.ProfileNotes));
         } else {
             actionBar.setTitle(getString(R.string.EditContact));
         }
@@ -194,6 +199,10 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
                 if (id == -1) {
                     finishFragment();
                 } else if (id == done_button) {
+                    if (focusNotes) {
+                        saveCloudNote();
+                        return;
+                    }
                     if (firstNameField.getText().length() != 0) {
                         final TLRPC.User user = getMessagesController().getUser(user_id);
                         final TLRPC.UserFull userInfo = getMessagesController().getUserFull(user_id);
@@ -526,29 +535,42 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
     private void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         final TLRPC.User user = getMessagesController().getUser(user_id);
 
-        items.add(UItem.asCustom(infoLayout));
-        items.add(UItem.asCustom(firstNameField));
-        items.add(UItem.asCustom(lastNameField));
+        if (!focusNotes) {
+            items.add(UItem.asCustom(infoLayout));
+            items.add(UItem.asCustom(firstNameField));
+            items.add(UItem.asCustom(lastNameField));
 
-        if (TextUtils.isEmpty(getPhone())) {
-            items.add(UItem.asShadow(AndroidUtilities.replaceCharSequence("%1$s", AndroidUtilities.replaceTags(getString(R.string.MobileHiddenExceptionInfo)), UserObject.getFirstName(user))));
-        } else {
-            if (needAddException) {
-                items.add(UItem.asShadow(AndroidUtilities.replaceTags(formatString("MobileVisibleInfo", R.string.MobileVisibleInfo, UserObject.getFirstName(user)))));
+            if (TextUtils.isEmpty(getPhone())) {
+                items.add(UItem.asShadow(AndroidUtilities.replaceCharSequence("%1$s", AndroidUtilities.replaceTags(getString(R.string.MobileHiddenExceptionInfo)), UserObject.getFirstName(user))));
             } else {
-                items.add(UItem.asShadow(null));
+                if (needAddException) {
+                    items.add(UItem.asShadow(AndroidUtilities.replaceTags(formatString("MobileVisibleInfo", R.string.MobileVisibleInfo, UserObject.getFirstName(user)))));
+                } else {
+                    items.add(UItem.asShadow(null));
+                }
+            }
+
+            if (addContact && needAddException) {
+                items.add(UItem.asCheck(2, getString(R.string.AddContactShareNumber)).setChecked(checkShare));
+                items.add(UItem.asShadow(formatString(R.string.AddContactShareNumberInfo, UserObject.getFirstName(user))));
             }
         }
 
-        if (addContact && needAddException) {
-            items.add(UItem.asCheck(2, getString(R.string.AddContactShareNumber)).setChecked(checkShare));
-            items.add(UItem.asShadow(formatString(R.string.AddContactShareNumberInfo, UserObject.getFirstName(user))));
+        items.add(UItem.asCustom(noteField));
+        if (!focusNotes) {
+            items.add(UItem.asShadow(getString(R.string.AddNotesInfo)));
+        }
+        if (focusNotes) {
+            items.add(UItem.asButton(
+                    42,
+                    R.drawable.msg_calendar,
+                    getString(R.string.ZoxgramNoteExpires),
+                    getNoteExpiryLabel()
+            ));
+            items.add(UItem.asShadow(getString(R.string.ZoxgramCloudPrivacyInfo)));
         }
 
-        items.add(UItem.asCustom(noteField));
-        items.add(UItem.asShadow(getString(R.string.AddNotesInfo)));
-
-        if (!addContact) {
+        if (!addContact && !focusNotes) {
             final TLRPC.UserFull userInfo = getMessagesController().getUserFull(user_id);
             if (userInfo != null && userInfo.birthday == null) {
                 items.add(UItem.asCustom(suggestBirthday));
@@ -588,6 +610,35 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
                 }
 
                 if (focusNotes) {
+                    noteField.editText.setEnabled(false);
+                    ZoxgramNoteRepository.load(user_id, new ZoxgramNoteRepository.NoteCallback() {
+                        @Override
+                        public void onSuccess(ZoxgramNoteRepository.Note note) {
+                            if (note != null) {
+                                noteField.setText(note.text);
+                                noteExpiryOption = note.expiryOption;
+                            }
+                            noteField.editText.setEnabled(true);
+                            if (listView != null && listView.getAdapter() != null) {
+                                listView.getAdapter().notifyDataSetChanged();
+                            }
+                        }
+
+                        @Override
+                        public void onError(String message) {
+                            noteField.editText.setEnabled(true);
+                            if (getParentActivity() != null) {
+                                new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+                                        .setTitle(getString(R.string.ZoxgramCloudAccount))
+                                        .setMessage(message + "\n\n" + getString(R.string.ZoxgramNoteSignInRequired))
+                                        .setPositiveButton(getString(R.string.OK), null)
+                                        .show();
+                            }
+                        }
+                    });
+                }
+
+                if (focusNotes) {
                     noteField.editText.requestFocus();
                     AndroidUtilities.showKeyboard(noteField.editText);
                 }
@@ -604,7 +655,9 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
     }
 
     private void onItemClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == 1) {
+        if (item.id == 42 && focusNotes) {
+            showNoteExpiryPicker();
+        } else if (item.id == 1) {
             final TLRPC.User user = getMessagesController().getUser(user_id);
             if (user == null || getParentActivity() == null) {
                 return;
@@ -628,6 +681,133 @@ public class ContactAddActivity extends BaseFragment implements NotificationCent
             checkShare = !checkShare;
             ((TextCheckCell) view).setChecked(checkShare);
         }
+    }
+
+    private void showNoteExpiryPicker() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        CharSequence[] options = {
+                getString(R.string.ZoxgramNoteExpiryOneDay),
+                getString(R.string.ZoxgramNoteExpiryFiveDays),
+                getString(R.string.ZoxgramNoteExpirySevenDays),
+                getString(R.string.ZoxgramNoteExpiryNever)
+        };
+        new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+                .setTitle(getString(R.string.ZoxgramNoteExpires))
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        noteExpiryOption = ZoxgramNoteRepository.EXPIRY_1_DAY;
+                    } else if (which == 1) {
+                        noteExpiryOption = ZoxgramNoteRepository.EXPIRY_5_DAYS;
+                    } else if (which == 2) {
+                        noteExpiryOption = ZoxgramNoteRepository.EXPIRY_7_DAYS;
+                    } else {
+                        noteExpiryOption = ZoxgramNoteRepository.EXPIRY_NEVER;
+                    }
+                    if (listView != null && listView.getAdapter() != null) {
+                        listView.getAdapter().notifyDataSetChanged();
+                    }
+                })
+                .setNegativeButton(getString(R.string.Cancel), null)
+                .show();
+    }
+
+    private String getNoteExpiryLabel() {
+        if (ZoxgramNoteRepository.EXPIRY_1_DAY.equals(noteExpiryOption)) {
+            return getString(R.string.ZoxgramNoteExpiryOneDay);
+        } else if (ZoxgramNoteRepository.EXPIRY_5_DAYS.equals(noteExpiryOption)) {
+            return getString(R.string.ZoxgramNoteExpiryFiveDays);
+        } else if (ZoxgramNoteRepository.EXPIRY_7_DAYS.equals(noteExpiryOption)) {
+            return getString(R.string.ZoxgramNoteExpirySevenDays);
+        }
+        return getString(R.string.ZoxgramNoteExpiryNever);
+    }
+
+    private void saveCloudNote() {
+        if (noteSaveInProgress) {
+            return;
+        }
+        TLRPC.TL_textWithEntities textWithEntities = noteField.getTextWithEntities();
+        String text = textWithEntities == null ? "" : textWithEntities.text;
+        boolean deletingNote = TextUtils.isEmpty(text.trim());
+        TLRPC.UserFull userInfo = getMessagesController().getUserFull(user_id);
+        boolean hasLegacyNote = userInfo != null && userInfo.note != null;
+        if (!deletingNote && hasLegacyNote) {
+            if (getParentActivity() == null) {
+                return;
+            }
+            new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+                    .setTitle(getString(R.string.ZoxgramCloudAccount))
+                    .setMessage(getString(R.string.ZoxgramLegacyNoteMoveConfirm))
+                    .setNegativeButton(getString(R.string.Cancel), null)
+                    .setPositiveButton(getString(R.string.ZoxgramMoveNoteToCloud), (dialog, which) ->
+                            performCloudNoteSave(text, false, true))
+                    .show();
+            return;
+        }
+        performCloudNoteSave(text, deletingNote, deletingNote && hasLegacyNote);
+    }
+
+    private void performCloudNoteSave(String text, boolean deletingNote, boolean clearLegacyNote) {
+        if (noteSaveInProgress) {
+            return;
+        }
+        noteSaveInProgress = true;
+        if (doneButton != null) {
+            doneButton.setEnabled(false);
+        }
+        ZoxgramNoteRepository.SaveCallback callback = new ZoxgramNoteRepository.SaveCallback() {
+            @Override
+            public void onSuccess() {
+                if (clearLegacyNote) {
+                    clearLegacyContactNote();
+                }
+                NotificationCenter.getInstance(currentAccount).postNotificationName(
+                        NotificationCenter.updateInterfaces,
+                        MessagesController.UPDATE_MASK_ZOXGRAM_PROFILE
+                );
+                finishFragment();
+            }
+
+            @Override
+            public void onError(String message) {
+                noteSaveInProgress = false;
+                if (doneButton != null) {
+                    doneButton.setEnabled(true);
+                }
+                if (getParentActivity() != null) {
+                    new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+                            .setTitle(getString(R.string.ZoxgramCloudAccount))
+                            .setMessage(message)
+                            .setPositiveButton(getString(R.string.OK), null)
+                            .show();
+                }
+            }
+        };
+        if (deletingNote) {
+            ZoxgramNoteRepository.delete(user_id, callback);
+        } else {
+            ZoxgramNoteRepository.save(user_id, text, noteExpiryOption, callback);
+        }
+    }
+
+    private void clearLegacyContactNote() {
+        TLRPC.UserFull userInfo = getMessagesController().getUserFull(user_id);
+        boolean hasLegacyNote = userInfo != null && userInfo.note != null;
+        if (hasLegacyNote) {
+            userInfo.flags2 &= ~TLObject.FLAG_22;
+            userInfo.note = null;
+            getMessagesStorage().updateUserInfo(userInfo, true);
+        }
+
+        if (!hasLegacyNote) {
+            return;
+        }
+        TLRPC.TL_updateContactNote request = new TLRPC.TL_updateContactNote();
+        request.id = getMessagesController().getInputUser(user_id);
+        request.note = new TLRPC.TL_textWithEntities();
+        getConnectionsManager().sendRequest(request, null);
     }
 
     private void showAvatarProgress(boolean show, boolean animated) {

@@ -1,8 +1,5 @@
-// Zoxgram profile data template.
-// The app must receive a Firebase Auth custom claim named "zox_id" from a
-// trusted backend after the Telegram account has been verified. Never mint this
-// claim from a client-supplied ID. Six-digit ZoxIDs must be allocated uniquely
-// by that backend; Firestore rules cannot guarantee uniqueness on their own.
+// Zoxgram profile notes. The trusted getOrCreateZoxId callable assigns the
+// six-digit ID and adds the zox_id Firebase Auth custom claim.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -12,31 +9,37 @@ service cloud.firestore {
 
     function ownsZoxId(zoxId) {
       return signedIn()
+        && request.auth.token.zox_id is string
         && request.auth.token.zox_id == zoxId
         && zoxId.matches('^[0-9]{6}$');
     }
 
     match /profiles/{zoxId} {
-      allow read: if signedIn();
+      // The owner record is private too; ZoxIDs are not a public directory.
+      allow read: if ownsZoxId(zoxId);
       allow create, update: if ownsZoxId(zoxId)
         && request.resource.data.keys().hasAll(['zoxId'])
         && request.resource.data.keys().hasOnly(['zoxId'])
         && request.resource.data.zoxId == zoxId;
       allow delete: if false;
 
-      match /notes/{noteId} {
+      // One document per Telegram user being noted:
+      // profiles/{ownerZoxId}/notes/{contactTelegramUserId}
+      match /notes/{contactUserId} {
         function validNote() {
-          return request.resource.data.keys().hasOnly([
-              'text', 'expiryOption', 'expiresAt', 'updatedAt'
-            ])
+          return contactUserId.matches('^[1-9][0-9]{0,19}$')
+            && request.resource.data.keys().hasOnly([
+                'text', 'expiryOption', 'expiresAt', 'updatedAt'
+              ])
             && request.resource.data.keys().hasAll([
               'text', 'expiryOption', 'expiresAt', 'updatedAt'
             ])
             && request.resource.data.text is string
+            && request.resource.data.text.size() > 0
             && request.resource.data.text.size() <= 1200
             && request.resource.data.expiryOption in ['1d', '5d', '7d', 'never']
             && request.resource.data.updatedAt is timestamp
-            && request.resource.data.updatedAt <= request.time
+            && request.resource.data.updatedAt == request.time
             && (
               request.resource.data.expiryOption == 'never'
                 ? request.resource.data.expiresAt == null
@@ -45,16 +48,19 @@ service cloud.firestore {
             );
         }
 
-        allow read: if signedIn();
-        allow create, update: if noteId == 'public'
-          && ownsZoxId(zoxId)
-          && validNote();
-        allow delete: if noteId == 'public' && ownsZoxId(zoxId);
+        allow read: if ownsZoxId(zoxId);
+        allow create, update: if ownsZoxId(zoxId) && validNote();
+        allow delete: if ownsZoxId(zoxId)
+          && contactUserId.matches('^[1-9][0-9]{0,19}$');
       }
     }
 
-    // ID allocation/mapping is server-owned. Clients cannot claim or rewrite IDs.
+    // ZoxID allocation and UID mappings are callable-function-only.
     match /zoxIdClaims/{zoxId} {
+      allow read, write: if false;
+    }
+
+    match /zoxIdOwners/{uid} {
       allow read, write: if false;
     }
 

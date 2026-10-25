@@ -1,0 +1,1 @@
+- [Zoxgram account policy](zoxgram-account-policy.md) — keep Firebase profile notes owner-only and retain the four-account cap for now.
