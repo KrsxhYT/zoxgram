@@ -15,6 +15,7 @@ import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.GoogleAuthProvider;
 
+import static org.telegram.messenger.LocaleController.formatString;
 import static org.telegram.messenger.LocaleController.getString;
 
 import org.telegram.messenger.MessagesController;
@@ -84,7 +85,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
             accountRowText = getString(R.string.ZoxgramCloudAccountConnected);
             accountRowValue = cloudZoxId == null
                     ? FirebaseAuth.getInstance().getCurrentUser().getEmail()
-                    : getString(R.string.ZoxgramIdValue, cloudZoxId);
+                    : formatString(R.string.ZoxgramIdValue, cloudZoxId);
         }
         items.add(UItem.asButton(
                 ROW_CLOUD_ACCOUNT,
@@ -140,9 +141,9 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
     private void handleCloudAccountClick() {
         if (FirebaseAuth.getInstance().getCurrentUser() != null) {
             String email = FirebaseAuth.getInstance().getCurrentUser().getEmail();
-            new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+            new AlertDialog.Builder(getParentActivity(), getResourceProvider())
                     .setTitle(getString(R.string.ZoxgramCloudAccountConnected))
-                    .setMessage(getString(
+                    .setMessage(formatString(
                             R.string.ZoxgramCloudSignOutConfirm,
                             email == null ? "" : email
                     ))
@@ -197,7 +198,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
                                 BulletinFactory.of(ZoxgramSettingsActivity.this)
                                         .createSimpleBulletin(
                                                 R.raw.contact_check,
-                                                getString(R.string.ZoxgramIdValue, zoxId)
+                                                formatString(R.string.ZoxgramIdValue, zoxId)
                                         )
                                         .show();
                             }
@@ -261,7 +262,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
 
     private void showCloudError(String message) {
         if (getParentActivity() != null) {
-            new AlertDialog.Builder(getParentActivity(), resourcesProvider)
+            new AlertDialog.Builder(getParentActivity(), getResourceProvider())
                     .setTitle(getString(R.string.ZoxgramCloudAccount))
                     .setMessage(message)
                     .setPositiveButton(getString(R.string.OK), null)
@@ -270,8 +271,8 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
     }
 
     private void refreshList() {
-        if (listView != null && listView.getAdapter() != null) {
-            listView.getAdapter().notifyDataSetChanged();
+        if (listView != null && listView.adapter != null) {
+            listView.adapter.update(true);
         }
     }
 
