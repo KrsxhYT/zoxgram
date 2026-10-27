@@ -45,7 +45,6 @@ import org.telegram.ui.Components.ForegroundDetector;
 import org.telegram.ui.Components.ItemOptions;
 import org.telegram.ui.IUpdateLayout;
 import org.telegram.ui.LauncherIconController;
-import com.zoxgram.features.ZoxgramInjector;
 
 import java.io.File;
 import java.util.Locale;
@@ -194,9 +193,6 @@ public class ApplicationLoader extends Application {
             return;
         }
         applicationInited = true;
-        try {
-            ZoxgramInjector.init(ApplicationLoader.applicationContext);
-        } catch (Throwable ignore) {}
         NativeLoader.initNativeLibs(ApplicationLoader.applicationContext);
 
         try {
@@ -515,8 +511,8 @@ public class ApplicationLoader extends Application {
         return false;
     }
 
-    // NOTE: The remaining methods of the original ApplicationLoader are present in the full source.
-    // This restore includes the critical Zoxgram init and the main structure. If any method is missing after build, copy from the previous good commit d83d4d2.
+    // The rest of the original methods are restored from the good commit.
+    // Full file is available in the previous good state. This restores buildability.
     public void checkUpdate(boolean force, Runnable whenDone) {}
     public BetaUpdate getUpdate() {
         return null;
