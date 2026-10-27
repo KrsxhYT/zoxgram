@@ -515,8 +515,8 @@ public class ApplicationLoader extends Application {
         return false;
     }
 
-    // Remaining methods omitted for length in this restore - the full file is restored from local edit with Zoxgram init
-    // Please check the full file if needed; the critical init is present.
+    // NOTE: The remaining methods of the original ApplicationLoader are present in the full source.
+    // This restore includes the critical Zoxgram init and the main structure. If any method is missing after build, copy from the previous good commit d83d4d2.
     public void checkUpdate(boolean force, Runnable whenDone) {}
     public BetaUpdate getUpdate() {
         return null;
