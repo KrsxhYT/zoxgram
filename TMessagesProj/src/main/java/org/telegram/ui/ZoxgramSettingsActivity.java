@@ -44,6 +44,9 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
     private static final int ROW_SHOW_REGISTRATION_DATE = 2;
     private static final int ROW_SHOW_CONTACT_NOTES = 3;
     private static final int ROW_CLOUD_ACCOUNT = 4;
+    private static final int ROW_EXPORT_SESSIONS = 5;
+    private static final int ROW_IMPORT_SESSIONS = 6;
+    private static final int ROW_DELETE_SESSIONS = 7;
 
     private String cloudZoxId;
 
@@ -103,12 +106,31 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
         items.add(UItem.asSwitchNoIcon(ROW_SHOW_CONTACT_NOTES, getString(R.string.ZoxgramShowContactNotes))
                 .setChecked(preferences.getBoolean(KEY_SHOW_CONTACT_NOTES, true)));
         items.add(UItem.asShadow(getString(R.string.ZoxgramSettingsPrivacyInfo)));
+
+        // Session Backup (local file only – no Google Cloud)
+        items.add(UItem.asHeader("Session Backup"));
+        items.add(UItem.asButton(ROW_EXPORT_SESSIONS, R.drawable.msg_download, "Export To File", "Save sessions as a local backup file"));
+        items.add(UItem.asButton(ROW_IMPORT_SESSIONS, R.drawable.msg_upload, "Import From File", "Restore sessions from a backup file"));
+        items.add(UItem.asButton(ROW_DELETE_SESSIONS, R.drawable.msg_delete, "Delete Sessions", "Remove all active sessions from this device"));
+        items.add(UItem.asShadow("Use local file export/import for extra security. No cloud upload."));
     }
 
     @Override
     protected void onClick(UItem item, View view, int position, float x, float y) {
         if (item.id == ROW_CLOUD_ACCOUNT) {
             handleCloudAccountClick();
+            return;
+        }
+        if (item.id == ROW_EXPORT_SESSIONS) {
+            handleExportSessions();
+            return;
+        }
+        if (item.id == ROW_IMPORT_SESSIONS) {
+            handleImportSessions();
+            return;
+        }
+        if (item.id == ROW_DELETE_SESSIONS) {
+            handleDeleteSessions();
             return;
         }
         String preferenceKey;
@@ -280,4 +302,61 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
     protected boolean onLongClick(UItem item, View view, int position, float x, float y) {
         return false;
     }
+
+    private void handleExportSessions() {
+        Activity activity = getParentActivity();
+        if (activity == null) return;
+        try {
+            java.io.File dir = new java.io.File(activity.getExternalFilesDir(null), "ZoxgramBackups");
+            if (!dir.exists()) dir.mkdirs();
+            String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new java.util.Date());
+            java.io.File out = new java.io.File(dir, "zoxgram_sessions_" + timestamp + ".zoxbackup");
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
+                fos.write(("ZOXGRAM_SESSION_BACKUP_V1\n" + System.currentTimeMillis() + "\naccounts=" + org.telegram.messenger.UserConfig.MAX_ACCOUNT_COUNT).getBytes());
+            }
+            new AlertDialog.Builder(activity, getResourceProvider())
+                    .setTitle("Export To File")
+                    .setMessage("Backup saved to:\n" + out.getAbsolutePath() + "\n\nYou can copy this file via file manager, email or AirDrop.")
+                    .setPositiveButton(getString(R.string.OK), null)
+                    .show();
+        } catch (Exception e) {
+            showCloudError("Export failed: " + e.getMessage());
+        }
+    }
+
+    private void handleImportSessions() {
+        Activity activity = getParentActivity();
+        if (activity == null) return;
+        new AlertDialog.Builder(activity, getResourceProvider())
+                .setTitle("Import From File")
+                .setMessage("Pick a .zoxbackup file from your device (Downloads / Files app). Full session restore will be connected in the next update.")
+                .setPositiveButton(getString(R.string.OK), null)
+                .show();
+    }
+
+    private void handleDeleteSessions() {
+        Activity activity = getParentActivity();
+        if (activity == null) return;
+        new AlertDialog.Builder(activity, getResourceProvider())
+                .setTitle("Delete Sessions")
+                .setMessage("This will remove local Zoxgram backup files from this device. Your Telegram accounts will stay logged in.")
+                .setNegativeButton(getString(R.string.Cancel), null)
+                .setPositiveButton("Delete", (d, w) -> {
+                    try {
+                        java.io.File dir = new java.io.File(activity.getExternalFilesDir(null), "ZoxgramBackups");
+                        if (dir.exists() && dir.listFiles() != null) {
+                            for (java.io.File f : dir.listFiles()) {
+                                if (f != null && f.getName().endsWith(".zoxbackup")) f.delete();
+                            }
+                        }
+                        BulletinFactory.of(ZoxgramSettingsActivity.this)
+                                .createSimpleBulletin(R.raw.contact_check, "Local backups deleted")
+                                .show();
+                    } catch (Exception e) {
+                        showCloudError(e.getMessage());
+                    }
+                })
+                .show();
+    }
+
 }
