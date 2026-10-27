@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Zoxgram branding overrides -->
+    <string name="AppName">Zoxgram</string>
+    <string name="AppNameBeta">Zoxgram Beta</string>
+    <string name="Telegram">Zoxgram</string>
+    <string name="TelegramFaq">Zoxgram FAQ</string>
+    <string name="TelegramFeatures">Zoxgram Features</string>
+    <string name="TelegramPremium">Zoxgram Premium</string>
+    <string name="TelegramContacts">Zoxgram Contacts</string>
+    <string name="TelegramVersion">Zoxgram</string>
+    <string name="LanguageName">Zoxgram</string>
+
+    <!-- Zoxgram Settings -->
+    <string name="ZoxgramSettings">Zoxgram Settings</string>
+    <string name="ZoxgramShowChatId">Show Chat ID</string>
+    <string name="ZoxgramShowNotes">Show Profile Notes</string>
+    <string name="ZoxgramShowRegDate">Show Registration Date</string>
+    <string name="ZoxgramVoiceDownload">Voice Message Download</string>
+    <string name="ZoxgramSpeech2Text">Speech to Text</string>
+    <string name="ZoxgramCircleVideo">Circle Video</string>
+    <string name="ZoxgramGroupCallRecorder">Group Call Recorder</string>
+
+    <!-- Profile Notes -->
+    <string name="ZoxgramSetNote">Set Note</string>
+    <string name="ZoxgramNoteHint">Add a personal note about this contact…</string>
+    <string name="ZoxgramNoteExpiry">Note expires</string>
+    <string name="ZoxgramExpiry1Day">1 day</string>
+    <string name="ZoxgramExpiry5Days">5 days</string>
+    <string name="ZoxgramExpiry7Days">7 days</string>
+    <string name="ZoxgramExpiryNever">Never</string>
+    <string name="ZoxgramNoteSaved">Note saved</string>
+    <string name="ZoxgramNoteCleared">Note cleared</string>
+
+    <!-- Reg Date -->
+    <string name="ZoxgramGetRegDate">Get Registration Date</string>
+    <string name="ZoxgramRegDate">Registration Date</string>
+
+    <!-- Voice / Speech -->
+    <string name="ZoxgramDownloadVoice">Download</string>
+    <string name="ZoxgramSpeech2TextButton">→A</string>
+    <string name="ZoxgramTranscribing">Transcribing…</string>
+
+    <!-- Circle Video -->
+    <string name="ZoxgramSendAsRoundedVideo">Send as Rounded Video</string>
+
+    <!-- Session Backup -->
+    <string name="ZoxgramExportToFile">Export To File</string>
+    <string name="ZoxgramImportFromFile">Import From File</string>
+    <string name="ZoxgramDeleteSessions">Delete Sessions</string>
+    <string name="ZoxgramBackupSuccess">Backup created</string>
+    <string name="ZoxgramImportSuccess">Sessions imported</string>
+</resources>
