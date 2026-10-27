@@ -1,51 +1,59 @@
 # Zoxgram Features Module
 
-All Zoxgram-specific enhancements live here.
+## ✅ Completed
 
-## ✅ Done (committed)
+- Module structure + dependency in TMessagesProj
+- ZoxgramConfig (all feature toggles)
+- ProfileNotesManager (local + Firestore + expiry 1d/5d/7d/never)
+- SessionBackupManager (File export/import/delete only)
+- VoiceFeaturesHelper (Download + Speech2Text)
+- CircleVideoHelper
+- RegDateHelper
+- ZoxgramSettingsActivity + registered in manifest
+- ZoxgramInjector (central entry points for UI)
+- Branding strings override (AppName, Telegram → Zoxgram, all feature strings)
+- Red theme (zoxredtheme.attheme)
 
-| Feature | Class / File |
-|---------|--------------|
-| Feature toggles | `ZoxgramConfig.java` |
-| Profile Notes (local + Firestore + expiry) | `ProfileNotesManager.java` |
-| Session Backup (File only) | `SessionBackupManager.java` |
-| Voice Download + Speech2Text | `VoiceFeaturesHelper.java` |
-| Circle / Rounded Video | `CircleVideoHelper.java` |
-| Registration Date | `RegDateHelper.java` |
-| Settings Activity skeleton | `ZoxgramSettingsActivity.java` |
-| Red Theme (gold → red) | `assets/zoxredtheme.attheme` |
-| Module linked to TMessagesProj | `settings.gradle` + dependency |
+## UI Injection Guide (for you / next AI session)
 
-## 🔧 Next (UI wiring into Telegram screens)
+Because the core Telegram UI classes (SettingsActivity, ProfileActivity, ChatActivity, DialogsActivity) are 100k–700k lines, full automated rewrite is risky. Use these exact injection points:
 
-These require editing core Telegram UI classes:
-
-1. **Settings row** – add "Zoxgram Settings" at the top of SettingsActivity / BasePreferencesActivity
-2. **Profile Notes UI** – "Set Note" popup + note display under bio (ProfileActivity)
-3. **Get Registration Date** button on profiles
-4. **Voice message** long-press Download + →A Speech2Text button (ChatActivity / ChatMessageCell)
-5. **Attachment menu** – "Send as Rounded Video" option
-6. **Group Call Recorder** → save to Saved Messages
-7. **Main header** after login – change "Telegram" text to "Zoxgram"
-8. **App logo / launcher icons** – replace all mipmap ic_launcher* with the white Z logo
-9. **Full string replace** – every visible "Telegram" → "Zoxgram" (strings.xml + code)
-10. **Unlimited accounts** support (UserConfig.MAX_ACCOUNT_COUNT already high in modern Telegram)
-
-## Logo
-
-Your logo is ready. Place it in:
+### 1. SettingsActivity (add row at top of list)
+In `fillItems` or the method that builds the UniversalAdapter items, add at the very beginning:
+```java
+items.add(UItem.asButton(R.string.ZoxgramSettings, () -> ZoxgramInjector.openSettings(this)));
 ```
-TMessagesProj/src/main/res/mipmap-mdpi/ic_launcher.png
-TMessagesProj/src/main/res/mipmap-hdpi/ic_launcher.png
-...
-(and adaptive icons)
+or using TextCell / HeaderCell style matching the rest of the settings list.
+
+### 2. ProfileActivity
+- After bio / status section → show note if present (ProfileNotesManager.getNote(userId))
+- Add “Set Note” button / long-press → ZoxgramInjector.showSetNoteDialog(...)
+- Add “Get Registration Date” row → ZoxgramInjector.requestRegDate(...)
+
+### 3. ChatActivity / ChatMessageCell
+- On voice message long-press menu → add “Download” → ZoxgramInjector.downloadVoice(...)
+- Add small “→A” button next to voice player → ZoxgramInjector.speech2Text(...)
+
+### 4. Attachment menu (ChatAttachAlert)
+- Add “Send as Rounded Video” option → ZoxgramInjector.sendAsCircleVideo(...)
+
+### 5. DialogsActivity / ActionBar title
+Wherever the main title is set to the app name, use:
+```java
+actionBar.setTitle(ZoxgramInjector.brand(getString(R.string.AppName)));
 ```
-Also copy to `drawable-xxhdpi/ic_zoxgram_logo.png` for in-app use.
+or simply hardcode "Zoxgram".
 
-## How to test so far
+### 6. Launcher icons
+Replace all `ic_launcher*.png` / adaptive icons in `TMessagesProj/src/main/res/mipmap-*` with the white Z logo you provided.
 
-1. Sync / rebuild the project (new module will appear).
-2. ZoxgramConfig, ProfileNotesManager, etc. can already be called from any Activity.
-3. Theme file can be loaded via Theme.applyTheme or by placing it in themes folder.
+### 7. Init
+In ApplicationLoader.onCreate or postInitApplication add:
+```java
+com.zoxgram.features.ZoxgramInjector.init(applicationContext);
+```
 
-Continue wiring the UI entry points next.
+## Firestore
+Your existing firestore.rules already perfectly support the notes structure. No change needed.
+
+Pull latest and continue wiring the 5–6 injection points above. The hard logic is already done.
