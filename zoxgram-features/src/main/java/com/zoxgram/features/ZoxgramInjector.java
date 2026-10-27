@@ -1,0 +1,78 @@
+package com.zoxgram.features;
+
+import android.content.Context;
+import android.view.View;
+import android.widget.Toast;
+
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ApplicationLoader;
+import org.telegram.ui.ActionBar.BaseFragment;
+import org.telegram.ui.ActionBar.Theme;
+
+/**
+ * Central entry points for injecting Zoxgram features into Telegram UI.
+ * Call these methods from the corresponding Telegram classes.
+ */
+public class ZoxgramInjector {
+
+    private static boolean initialized = false;
+
+    public static void init(Context context) {
+        if (initialized) return;
+        ZoxgramConfig.init(context);
+        initialized = true;
+    }
+
+    /**
+     * Call from SettingsActivity.fillItems / onClick to add the Zoxgram Settings row at the top.
+     */
+    public static void openSettings(BaseFragment fragment) {
+        init(fragment.getParentActivity());
+        ZoxgramSettingsActivity.open(fragment.getParentActivity());
+    }
+
+    /**
+     * Call from ProfileActivity to show "Set Note" dialog.
+     */
+    public static void showSetNoteDialog(Context context, long userId, ProfileNotesManager.NoteCallback callback) {
+        // Placeholder – real dialog will use Telegram AlertDialog style
+        // matching the video exactly (title, text field, expiry options, Confirm)
+        Toast.makeText(context, "Set Note for user " + userId + " (UI coming)", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Call from ProfileActivity to show "Get Registration Date".
+     */
+    public static void requestRegDate(Context context, long userId, RegDateHelper.RegDateCallback callback) {
+        RegDateHelper.requestRegDate(context, userId, callback);
+    }
+
+    /**
+     * Call from ChatMessageCell / ChatActivity on long-press of voice message.
+     */
+    public static void downloadVoice(Context context, java.io.File file, String name) {
+        VoiceFeaturesHelper.downloadVoiceMessage(context, file, name);
+    }
+
+    /**
+     * Call when user taps the →A button on a voice message.
+     */
+    public static void speech2Text(Context context, java.io.File file, VoiceFeaturesHelper.Speech2TextCallback callback) {
+        VoiceFeaturesHelper.requestSpeechToText(context, file, callback);
+    }
+
+    /**
+     * Call from attachment menu for "Send as Rounded Video".
+     */
+    public static boolean sendAsCircleVideo(Context context, java.io.File video) {
+        return CircleVideoHelper.startCircleConversion(context, video);
+    }
+
+    /**
+     * Apply Zoxgram branding title where "Telegram" appears in UI.
+     */
+    public static String brand(String original) {
+        if (original == null) return null;
+        return original.replace("Telegram", "Zoxgram").replace("telegram", "zoxgram");
+    }
+}
