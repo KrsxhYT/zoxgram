@@ -1,47 +1,51 @@
 # Zoxgram Features Module
 
-This module holds all Zoxgram-specific enhancements on top of the Telegram Android base.
+All Zoxgram-specific enhancements live here.
 
-## Implemented / Scaffolded
+## ✅ Done (committed)
 
-- **ZoxgramConfig** – On/Off toggles for:
-  - Show Chat ID
-  - Show Notes
-  - Show Registration Date
-  - Voice Message Download
-  - Speech2Text
-  - Circle Video
-  - Group Call Recorder
+| Feature | Class / File |
+|---------|--------------|
+| Feature toggles | `ZoxgramConfig.java` |
+| Profile Notes (local + Firestore + expiry) | `ProfileNotesManager.java` |
+| Session Backup (File only) | `SessionBackupManager.java` |
+| Voice Download + Speech2Text | `VoiceFeaturesHelper.java` |
+| Circle / Rounded Video | `CircleVideoHelper.java` |
+| Registration Date | `RegDateHelper.java` |
+| Settings Activity skeleton | `ZoxgramSettingsActivity.java` |
+| Red Theme (gold → red) | `assets/zoxredtheme.attheme` |
+| Module linked to TMessagesProj | `settings.gradle` + dependency |
 
-- **ProfileNotesManager** – Local + Firestore notes with expiry (1d / 5d / 7d / never).
-  Uses the existing `firestore.rules` (ZoxId based).
+## 🔧 Next (UI wiring into Telegram screens)
 
-- **SessionBackupManager** – File-only export / import / delete (no Google Cloud).
+These require editing core Telegram UI classes:
 
-## Still to wire into UI (next commits)
-
-1. Zoxgram Settings screen (appears at top of Telegram Settings)
-2. Profile note UI ("Set Note" popup exactly like the video)
-3. "Get Registration Date" button on profiles
-4. Long-press Download on voice messages
-5. ->A Speech2Text button on voice messages
-6. "Send as Rounded Video" option
-7. Group Call Recorder → Saved Messages
-8. Unlimited accounts support
-9. Full "Telegram" → "Zoxgram" string & logo replacement
-10. Red theme (goldietheme.attheme with gold/yellow → red)
+1. **Settings row** – add "Zoxgram Settings" at the top of SettingsActivity / BasePreferencesActivity
+2. **Profile Notes UI** – "Set Note" popup + note display under bio (ProfileActivity)
+3. **Get Registration Date** button on profiles
+4. **Voice message** long-press Download + →A Speech2Text button (ChatActivity / ChatMessageCell)
+5. **Attachment menu** – "Send as Rounded Video" option
+6. **Group Call Recorder** → save to Saved Messages
+7. **Main header** after login – change "Telegram" text to "Zoxgram"
+8. **App logo / launcher icons** – replace all mipmap ic_launcher* with the white Z logo
+9. **Full string replace** – every visible "Telegram" → "Zoxgram" (strings.xml + code)
+10. **Unlimited accounts** support (UserConfig.MAX_ACCOUNT_COUNT already high in modern Telegram)
 
 ## Logo
 
-Place the provided logo.png into:
-`TMessagesProj/src/main/res/mipmap-*/ic_launcher*.png` (all densities)
-and also as drawable for in-app use.
+Your logo is ready. Place it in:
+```
+TMessagesProj/src/main/res/mipmap-mdpi/ic_launcher.png
+TMessagesProj/src/main/res/mipmap-hdpi/ic_launcher.png
+...
+(and adaptive icons)
+```
+Also copy to `drawable-xxhdpi/ic_zoxgram_logo.png` for in-app use.
 
-## How to continue
+## How to test so far
 
-The core managers are ready. Next step is injecting the UI entry points into:
-- `LaunchActivity` / `DialogsActivity` (header title → Zoxgram)
-- `ProfileActivity` (notes + reg date)
-- `ChatActivity` (voice download + speech2text)
-- `SettingsActivity` / `BasePreferencesActivity` (Zoxgram Settings row)
-- Attachment menu (circle video)
+1. Sync / rebuild the project (new module will appear).
+2. ZoxgramConfig, ProfileNotesManager, etc. can already be called from any Activity.
+3. Theme file can be loaded via Theme.applyTheme or by placing it in themes folder.
+
+Continue wiring the UI entry points next.
