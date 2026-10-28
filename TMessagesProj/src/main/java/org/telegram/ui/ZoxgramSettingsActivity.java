@@ -18,18 +18,24 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/**
- * Zoxgram Settings – local only. No Google Cloud.
- */
+/** Zoxgram Settings – local only, no Google Cloud. */
 public class ZoxgramSettingsActivity extends UniversalFragment {
 
     public static final String KEY_SHOW_CHAT_ID = "zoxgram_show_chat_id";
     public static final String KEY_SHOW_REGISTRATION_DATE = "zoxgram_show_registration_date";
     public static final String KEY_SHOW_CONTACT_NOTES = "zoxgram_show_contact_notes";
+    public static final String KEY_VOICE_DOWNLOAD = "zoxgram_voice_download";
+    public static final String KEY_SPEECH2TEXT = "zoxgram_speech2text";
+    public static final String KEY_CIRCLE_VIDEO = "zoxgram_circle_video";
+    public static final String KEY_GROUP_CALL_REC = "zoxgram_group_call_rec";
 
     private static final int ROW_SHOW_CHAT_ID = 1;
     private static final int ROW_SHOW_REGISTRATION_DATE = 2;
     private static final int ROW_SHOW_CONTACT_NOTES = 3;
+    private static final int ROW_VOICE_DOWNLOAD = 8;
+    private static final int ROW_SPEECH2TEXT = 9;
+    private static final int ROW_CIRCLE_VIDEO = 10;
+    private static final int ROW_GROUP_CALL_REC = 11;
     private static final int ROW_EXPORT_SESSIONS = 5;
     private static final int ROW_IMPORT_SESSIONS = 6;
     private static final int ROW_DELETE_SESSIONS = 7;
@@ -41,57 +47,56 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
 
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
-        SharedPreferences preferences = getMessagesController().getMainSettings();
+        SharedPreferences p = getMessagesController().getMainSettings();
 
         items.add(UItem.asHeader(getString(R.string.ZoxgramProfileDetails)));
         items.add(UItem.asSwitchNoIcon(ROW_SHOW_CHAT_ID, getString(R.string.ZoxgramShowChatId))
-                .setChecked(preferences.getBoolean(KEY_SHOW_CHAT_ID, true)));
+                .setChecked(p.getBoolean(KEY_SHOW_CHAT_ID, true)));
         items.add(UItem.asSwitchNoIcon(ROW_SHOW_REGISTRATION_DATE, getString(R.string.ZoxgramShowRegistrationDate))
-                .setChecked(preferences.getBoolean(KEY_SHOW_REGISTRATION_DATE, true)));
+                .setChecked(p.getBoolean(KEY_SHOW_REGISTRATION_DATE, true)));
         items.add(UItem.asSwitchNoIcon(ROW_SHOW_CONTACT_NOTES, getString(R.string.ZoxgramShowContactNotes))
-                .setChecked(preferences.getBoolean(KEY_SHOW_CONTACT_NOTES, true)));
-        items.add(UItem.asShadow("Notes are stored only on this device. No cloud, no Google account needed."));
+                .setChecked(p.getBoolean(KEY_SHOW_CONTACT_NOTES, true)));
+        items.add(UItem.asShadow("Notes are stored only on this device."));
+
+        items.add(UItem.asHeader("Media features"));
+        items.add(UItem.asSwitchNoIcon(ROW_VOICE_DOWNLOAD, "Download voice messages")
+                .setChecked(p.getBoolean(KEY_VOICE_DOWNLOAD, true)));
+        items.add(UItem.asSwitchNoIcon(ROW_SPEECH2TEXT, "Speech to text")
+                .setChecked(p.getBoolean(KEY_SPEECH2TEXT, true)));
+        items.add(UItem.asSwitchNoIcon(ROW_CIRCLE_VIDEO, "Circle / rounded video")
+                .setChecked(p.getBoolean(KEY_CIRCLE_VIDEO, true)));
+        items.add(UItem.asSwitchNoIcon(ROW_GROUP_CALL_REC, "Group call recorder")
+                .setChecked(p.getBoolean(KEY_GROUP_CALL_REC, true)));
+        items.add(UItem.asShadow("Extra media tools inspired by Nicegram."));
 
         items.add(UItem.asHeader("Session Backup"));
-        items.add(UItem.asButton(ROW_EXPORT_SESSIONS, R.drawable.msg_download, "Export To File", "Save a local .zoxbackup file"));
-        items.add(UItem.asButton(ROW_IMPORT_SESSIONS, R.drawable.msg_upload, "Import From File", "Restore from a backup file"));
-        items.add(UItem.asButton(ROW_DELETE_SESSIONS, R.drawable.msg_delete, "Delete Local Backups", "Remove backup files from this device"));
-        items.add(UItem.asShadow("File export/import only. No Google Cloud."));
+        items.add(UItem.asButton(ROW_EXPORT_SESSIONS, R.drawable.msg_download, "Export To File", "Local .zoxbackup file"));
+        items.add(UItem.asButton(ROW_IMPORT_SESSIONS, R.drawable.msg_upload, "Import From File", "Restore from file"));
+        items.add(UItem.asButton(ROW_DELETE_SESSIONS, R.drawable.msg_delete, "Delete Local Backups", "Clear backup files"));
+        items.add(UItem.asShadow("File only. No cloud."));
     }
 
     @Override
     protected void onClick(UItem item, View view, int position, float x, float y) {
-        if (item.id == ROW_EXPORT_SESSIONS) {
-            handleExportSessions();
-            return;
-        }
-        if (item.id == ROW_IMPORT_SESSIONS) {
-            handleImportSessions();
-            return;
-        }
-        if (item.id == ROW_DELETE_SESSIONS) {
-            handleDeleteSessions();
-            return;
-        }
+        if (item.id == ROW_EXPORT_SESSIONS) { handleExportSessions(); return; }
+        if (item.id == ROW_IMPORT_SESSIONS) { handleImportSessions(); return; }
+        if (item.id == ROW_DELETE_SESSIONS) { handleDeleteSessions(); return; }
 
-        String preferenceKey;
+        String key;
         switch (item.id) {
-            case ROW_SHOW_CHAT_ID:
-                preferenceKey = KEY_SHOW_CHAT_ID;
-                break;
-            case ROW_SHOW_REGISTRATION_DATE:
-                preferenceKey = KEY_SHOW_REGISTRATION_DATE;
-                break;
-            case ROW_SHOW_CONTACT_NOTES:
-                preferenceKey = KEY_SHOW_CONTACT_NOTES;
-                break;
-            default:
-                return;
+            case ROW_SHOW_CHAT_ID: key = KEY_SHOW_CHAT_ID; break;
+            case ROW_SHOW_REGISTRATION_DATE: key = KEY_SHOW_REGISTRATION_DATE; break;
+            case ROW_SHOW_CONTACT_NOTES: key = KEY_SHOW_CONTACT_NOTES; break;
+            case ROW_VOICE_DOWNLOAD: key = KEY_VOICE_DOWNLOAD; break;
+            case ROW_SPEECH2TEXT: key = KEY_SPEECH2TEXT; break;
+            case ROW_CIRCLE_VIDEO: key = KEY_CIRCLE_VIDEO; break;
+            case ROW_GROUP_CALL_REC: key = KEY_GROUP_CALL_REC; break;
+            default: return;
         }
 
         SharedPreferences preferences = getMessagesController().getMainSettings();
-        boolean checked = !preferences.getBoolean(preferenceKey, true);
-        preferences.edit().putBoolean(preferenceKey, checked).apply();
+        boolean checked = !preferences.getBoolean(key, true);
+        preferences.edit().putBoolean(key, checked).apply();
         if (view instanceof TextCheckCell2) {
             ((TextCheckCell2) view).getCheckBox().setChecked(checked, true);
         }
@@ -107,27 +112,27 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
         try {
             java.io.File dir = new java.io.File(activity.getExternalFilesDir(null), "ZoxgramBackups");
             if (!dir.exists()) dir.mkdirs();
-            String timestamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new java.util.Date());
-            java.io.File out = new java.io.File(dir, "zoxgram_sessions_" + timestamp + ".zoxbackup");
+            String ts = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new java.util.Date());
+            java.io.File out = new java.io.File(dir, "zoxgram_sessions_" + ts + ".zoxbackup");
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(out)) {
                 fos.write(("ZOXGRAM_SESSION_BACKUP_V1\n" + System.currentTimeMillis()).getBytes());
             }
             new AlertDialog.Builder(activity, getResourceProvider())
                     .setTitle("Export To File")
-                    .setMessage("Backup saved:\n" + out.getAbsolutePath())
+                    .setMessage("Saved:\n" + out.getAbsolutePath())
                     .setPositiveButton(getString(R.string.OK), null)
                     .show();
         } catch (Exception e) {
-            showError("Export failed: " + e.getMessage());
+            showError(e.getMessage());
         }
     }
 
     private void handleImportSessions() {
-        Activity activity = getParentActivity();
-        if (activity == null) return;
-        new AlertDialog.Builder(activity, getResourceProvider())
+        Activity a = getParentActivity();
+        if (a == null) return;
+        new AlertDialog.Builder(a, getResourceProvider())
                 .setTitle("Import From File")
-                .setMessage("Copy a .zoxbackup file to this device, then restore will be available in a follow-up update.")
+                .setMessage("Place a .zoxbackup on device. Full restore hooks next.")
                 .setPositiveButton(getString(R.string.OK), null)
                 .show();
     }
@@ -137,7 +142,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
         if (activity == null) return;
         new AlertDialog.Builder(activity, getResourceProvider())
                 .setTitle("Delete Local Backups")
-                .setMessage("Remove all .zoxbackup files from this device?")
+                .setMessage("Remove all .zoxbackup files?")
                 .setNegativeButton(getString(R.string.Cancel), null)
                 .setPositiveButton("Delete", (d, w) -> {
                     try {
@@ -148,7 +153,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
                             }
                         }
                         BulletinFactory.of(ZoxgramSettingsActivity.this)
-                                .createSimpleBulletin(R.raw.contact_check, "Local backups deleted")
+                                .createSimpleBulletin(R.raw.contact_check, "Backups deleted")
                                 .show();
                     } catch (Exception e) {
                         showError(e.getMessage());
@@ -161,7 +166,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
         if (getParentActivity() != null) {
             new AlertDialog.Builder(getParentActivity(), getResourceProvider())
                     .setTitle(getString(R.string.ZoxgramSettings))
-                    .setMessage(message)
+                    .setMessage(message == null ? "Error" : message)
                     .setPositiveButton(getString(R.string.OK), null)
                     .show();
         }
