@@ -9,17 +9,21 @@ android {
     defaultConfig {
         minSdk 21
         targetSdk 36
-
         consumerProguardFiles "consumer-rules.pro"
     }
 
     buildTypes {
+        debug {
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
-        debug {
-        }
+        // Match all custom variants used by TMessagesProj so dependency resolution succeeds
+        standalone { matchingFallbacks = ['release'] }
+        HA_private { matchingFallbacks = ['release'] }
+        HA_public { matchingFallbacks = ['release'] }
+        HA_hardcore { matchingFallbacks = ['release'] }
     }
 
     compileOptions {
@@ -31,12 +35,5 @@ android {
 dependencies {
     implementation 'androidx.core:core:1.16.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
     implementation 'com.google.code.gson:gson:2.11.0'
-    implementation 'com.google.firebase:firebase-firestore:24.11.1'
-}
-
-repositories {
-    mavenCentral()
-    google()
 }
