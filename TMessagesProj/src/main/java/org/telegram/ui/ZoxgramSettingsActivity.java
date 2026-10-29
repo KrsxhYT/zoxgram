@@ -71,7 +71,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
 
         items.add(UItem.asHeader("Session Backup"));
         items.add(UItem.asButton(ROW_EXPORT_SESSIONS, R.drawable.msg_download, "Export To File", "Local .zoxbackup file"));
-        items.add(UItem.asButton(ROW_IMPORT_SESSIONS, R.drawable.msg_upload, "Import From File", "Restore from file"));
+        items.add(UItem.asButton(ROW_IMPORT_SESSIONS, R.drawable.msg_add, "Import From File", "Restore from file"));
         items.add(UItem.asButton(ROW_DELETE_SESSIONS, R.drawable.msg_delete, "Delete Local Backups", "Clear backup files"));
         items.add(UItem.asShadow("File only. No cloud."));
     }
