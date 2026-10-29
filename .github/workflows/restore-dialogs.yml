@@ -1,0 +1,94 @@
+name: Restore and patch Zoxgram files
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore DialogsActivity from good blob and patch title
+        run: |
+          set -e
+          curl -sL -H "Accept: application/vnd.github.raw+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/3369eb23273ce99bb8e18d8c38ffac78438d0e5d" \
+            -o TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java")
+          c = p.read_text(encoding="utf-8", errors="replace")
+          old = '''                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));\n                statusDrawable.center = true;\n                logoDrawable = context.getResources().getDrawable(R.drawable.telegram_logo_2).mutate();\n                logoDrawable.setBounds(0, dp(2), logoDrawable.getIntrinsicWidth(), dp(2) + logoDrawable.getIntrinsicHeight());\n                logoDrawable.setColorFilter(getThemedColor(Theme.key_telegram_color_dialogsLogo), PorterDuff.Mode.MULTIPLY);\n                SpannableStringBuilder ssb = new SpannableStringBuilder(getString(R.string.AppName));\n                ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);\n                actionBar.setTitle(ssb, statusDrawable);\n                updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);'''
+          new = '''                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));\n                statusDrawable.center = true;\n                actionBar.setTitle(getString(R.string.AppName), statusDrawable);\n                updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);'''
+          if old in c:
+              c = c.replace(old, new)
+              print("Dialogs title patched")
+          else:
+              print("Dialogs pattern not found, file restored only")
+          p.write_text(c, encoding="utf-8")
+          print("Dialogs size", len(c))
+          PY
+
+      - name: Patch Theme default to Zoxgram Red
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java")
+          c = p.read_text(encoding="utf-8", errors="replace")
+          old = '''        themeInfo.name = "Zoxgram Red";\n        themeInfo.assetName = "zoxgram_red.attheme";\n        themeInfo.previewBackgroundColor = 0xff151515;\n        themeInfo.previewInColor = 0xff1f1f1f;\n        themeInfo.previewOutColor = 0xffcf7373;\n        themeInfo.isDark = ThemeInfo.DARK;\n        themeInfo.sortIndex = 0;\n        themes.add(themeInfo);\n        themesDict.put(themeInfo.name, themeInfo);'''
+          new = old + '''\n        defaultTheme = themeInfo;\n        currentDayTheme = themeInfo;'''
+          if "defaultTheme = themeInfo;" not in c and old in c:
+              c = c.replace(old, new)
+              print("Theme default patched")
+          else:
+              print("Theme skip", "defaultTheme" in c)
+          p.write_text(c, encoding="utf-8")
+          PY
+
+      - name: Patch ChatActivity Metadata menu
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          import re
+          p = Path("TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java")
+          c = p.read_text(encoding="utf-8", errors="replace")
+          if "OPTION_ZOX_METADATA" not in c:
+              c = c.replace(
+                  "    public final static int OPTION_COPY = 3;",
+                  "    public final static int OPTION_COPY = 3;\n    public final static int OPTION_ZOX_METADATA = 9001;",
+                  1,
+              )
+              c = c.replace(
+                  "            case OPTION_COPY: {",
+                  '''            case OPTION_ZOX_METADATA: {\n                if (selectedObject != null) {\n                    org.telegram.ui.Components.MessageMetadataHelper.show(getParentActivity(), selectedObject, themeDelegate);\n                }\n                break;\n            }\n            case OPTION_COPY: {''',
+                  1,
+              )
+              rx = re.compile(
+                  r"(items\.add\(LocaleController\.getString\(R\.string\.Copy\)\);\s*"
+                  r"options\.add\(OPTION_COPY\);\s*"
+                  r"icons\.add\((R\.drawable\.[a-zA-Z0-9_]+)\);)"
+              )
+              def repl(m):
+                  return m.group(1) + '''\n                items.add("Metadata");\n                options.add(OPTION_ZOX_METADATA);\n                icons.add(R.drawable.msg_info);'''
+              c, n = rx.subn(repl, c)
+              print("metadata injections", n)
+          else:
+              print("metadata already present")
+          p.write_text(c, encoding="utf-8")
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "zoxgram-bot"
+          git config user.email "bot@zoxgram.local"
+          git add -A
+          git diff --cached --stat
+          git commit -m "Restore DialogsActivity + Zoxgram title + red theme default + Metadata menu" || echo "nothing to commit"
+          git push
