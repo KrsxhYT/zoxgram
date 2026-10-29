@@ -4020,6 +4020,8 @@ public class Theme {
         themeInfo.sortIndex = 0;
         themes.add(themeInfo);
         themesDict.put(themeInfo.name, themeInfo);
+        defaultTheme = themeInfo;
+        currentDayTheme = themeInfo;
 
         String themesString = themeConfig.getString("themes2", null);
 
