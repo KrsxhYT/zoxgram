@@ -11,16 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore DialogsActivity from good blob and patch title
+      - name: Restore DialogsActivity if stubbed
         run: |
           set -e
-          curl -sL -H "Accept: application/vnd.github.raw+json" \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/3369eb23273ce99bb8e18d8c38ffac78438d0e5d" \
-            -o TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
+          SIZE=$(wc -c < TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java || echo 0)
+          if [ "$SIZE" -lt 10000 ]; then
+            curl -sL -H "Accept: application/vnd.github.raw+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/3369eb23273ce99bb8e18d8c38ffac78438d0e5d" \
+              -o TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
+            echo "Dialogs restored"
+          else
+            echo "Dialogs OK size=$SIZE"
+          fi
           python3 << 'PY'
           from pathlib import Path
           p = Path("TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java")
@@ -28,60 +32,63 @@ jobs:
           old = '''                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));\n                statusDrawable.center = true;\n                logoDrawable = context.getResources().getDrawable(R.drawable.telegram_logo_2).mutate();\n                logoDrawable.setBounds(0, dp(2), logoDrawable.getIntrinsicWidth(), dp(2) + logoDrawable.getIntrinsicHeight());\n                logoDrawable.setColorFilter(getThemedColor(Theme.key_telegram_color_dialogsLogo), PorterDuff.Mode.MULTIPLY);\n                SpannableStringBuilder ssb = new SpannableStringBuilder(getString(R.string.AppName));\n                ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);\n                actionBar.setTitle(ssb, statusDrawable);\n                updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);'''
           new = '''                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));\n                statusDrawable.center = true;\n                actionBar.setTitle(getString(R.string.AppName), statusDrawable);\n                updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);'''
           if old in c:
-              c = c.replace(old, new)
-              print("Dialogs title patched")
+              p.write_text(c.replace(old, new), encoding="utf-8")
+              print("title patched")
           else:
-              print("Dialogs pattern not found, file restored only")
-          p.write_text(c, encoding="utf-8")
-          print("Dialogs size", len(c))
+              print("title already patched or pattern missing")
           PY
 
-      - name: Patch Theme default to Zoxgram Red
+      - name: Restore ApplicationLoader if stubbed + inject theme force
+        run: |
+          set -e
+          SIZE=$(wc -c < TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java || echo 0)
+          if [ "$SIZE" -lt 5000 ]; then
+            curl -sL -H "Accept: application/vnd.github.raw+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/5405be7f611ac6ce7c4b36937043e99ffeb7914e" \
+              -o TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+            echo "ApplicationLoader restored"
+          else
+            echo "ApplicationLoader size=$SIZE"
+          fi
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java")
+          c = p.read_text(encoding="utf-8", errors="replace")
+          if "PLACEHOLDER" in c or "TEMPORARY STUB" in c or len(c) < 5000:
+              raise SystemExit("ApplicationLoader still bad")
+          if "ZoxgramThemeHelper" not in c:
+              old = """        SharedConfig.loadConfig();
+        SharedPrefsHelper.init(applicationContext);"""
+              new = """        SharedConfig.loadConfig();
+        SharedPrefsHelper.init(applicationContext);
+        // Nicegram-style: force Zoxgram Red theme
+        try {
+            AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded);
+        } catch (Throwable ignore) {
+            try {
+                ZoxgramThemeHelper.forceApplyRedThemeIfNeeded();
+            } catch (Throwable ignored) {}
+        }"""
+              if old not in c:
+                  raise SystemExit("inject point missing")
+              c = c.replace(old, new, 1)
+              p.write_text(c, encoding="utf-8")
+              print("theme force injected")
+          else:
+              print("theme force already present")
+          PY
+
+      - name: Harden MessageMetadataHelper
         run: |
           python3 << 'PY'
           from pathlib import Path
-          p = Path("TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java")
-          c = p.read_text(encoding="utf-8", errors="replace")
-          old = '''        themeInfo.name = "Zoxgram Red";\n        themeInfo.assetName = "zoxgram_red.attheme";\n        themeInfo.previewBackgroundColor = 0xff151515;\n        themeInfo.previewInColor = 0xff1f1f1f;\n        themeInfo.previewOutColor = 0xffcf7373;\n        themeInfo.isDark = ThemeInfo.DARK;\n        themeInfo.sortIndex = 0;\n        themes.add(themeInfo);\n        themesDict.put(themeInfo.name, themeInfo);'''
-          new = old + '''\n        defaultTheme = themeInfo;\n        currentDayTheme = themeInfo;'''
-          if "defaultTheme = themeInfo;" not in c and old in c:
-              c = c.replace(old, new)
-              print("Theme default patched")
-          else:
-              print("Theme skip", "defaultTheme" in c)
-          p.write_text(c, encoding="utf-8")
-          PY
-
-      - name: Patch ChatActivity Metadata menu
-        run: |
-          python3 << 'PY'
-          from pathlib import Path
-          import re
-          p = Path("TMessagesProj/src/main/java/org/telegram/ui/ChatActivity.java")
-          c = p.read_text(encoding="utf-8", errors="replace")
-          if "OPTION_ZOX_METADATA" not in c:
-              c = c.replace(
-                  "    public final static int OPTION_COPY = 3;",
-                  "    public final static int OPTION_COPY = 3;\n    public final static int OPTION_ZOX_METADATA = 9001;",
-                  1,
-              )
-              c = c.replace(
-                  "            case OPTION_COPY: {",
-                  '''            case OPTION_ZOX_METADATA: {\n                if (selectedObject != null) {\n                    org.telegram.ui.Components.MessageMetadataHelper.show(getParentActivity(), selectedObject, themeDelegate);\n                }\n                break;\n            }\n            case OPTION_COPY: {''',
-                  1,
-              )
-              rx = re.compile(
-                  r"(items\.add\(LocaleController\.getString\(R\.string\.Copy\)\);\s*"
-                  r"options\.add\(OPTION_COPY\);\s*"
-                  r"icons\.add\((R\.drawable\.[a-zA-Z0-9_]+)\);)"
-              )
-              def repl(m):
-                  return m.group(1) + '''\n                items.add("Metadata");\n                options.add(OPTION_ZOX_METADATA);\n                icons.add(R.drawable.msg_info);'''
-              c, n = rx.subn(repl, c)
-              print("metadata injections", n)
-          else:
-              print("metadata already present")
-          p.write_text(c, encoding="utf-8")
+          p = Path("TMessagesProj/src/main/java/org/telegram/ui/Components/MessageMetadataHelper.java")
+          if p.exists():
+              c = p.read_text(encoding="utf-8")
+              c2 = c.replace('tv.setTypeface(AndroidUtilities.getTypeface("fonts/rmono.ttf"));', 'tv.setTypeface(android.graphics.Typeface.MONOSPACE);')
+              p.write_text(c2, encoding="utf-8")
+              print("metadata helper ok")
           PY
 
       - name: Commit and push
@@ -89,6 +96,5 @@ jobs:
           git config user.name "zoxgram-bot"
           git config user.email "bot@zoxgram.local"
           git add -A
-          git diff --cached --stat
-          git commit -m "Restore DialogsActivity + Zoxgram title + red theme default + Metadata menu" || echo "nothing to commit"
+          git commit -m "Fix ApplicationLoader + Nicegram-style force Zoxgram Red theme" || echo "nothing"
           git push
