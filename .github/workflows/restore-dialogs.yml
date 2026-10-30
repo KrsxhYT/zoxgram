@@ -12,89 +12,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Restore DialogsActivity if stubbed
+      - name: Fix ApplicationLoader and theme
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          SIZE=$(wc -c < TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java || echo 0)
-          if [ "$SIZE" -lt 10000 ]; then
-            curl -sL -H "Accept: application/vnd.github.raw+json" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/3369eb23273ce99bb8e18d8c38ffac78438d0e5d" \
-              -o TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java
-            echo "Dialogs restored"
-          else
-            echo "Dialogs OK size=$SIZE"
-          fi
-          python3 << 'PY'
-          from pathlib import Path
-          p = Path("TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java")
-          c = p.read_text(encoding="utf-8", errors="replace")
-          old = '''                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));\n                statusDrawable.center = true;\n                logoDrawable = context.getResources().getDrawable(R.drawable.telegram_logo_2).mutate();\n                logoDrawable.setBounds(0, dp(2), logoDrawable.getIntrinsicWidth(), dp(2) + logoDrawable.getIntrinsicHeight());\n                logoDrawable.setColorFilter(getThemedColor(Theme.key_telegram_color_dialogsLogo), PorterDuff.Mode.MULTIPLY);\n                SpannableStringBuilder ssb = new SpannableStringBuilder(getString(R.string.AppName));\n                ssb.setSpan(new ImageSpan(logoDrawable), 0, ssb.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);\n                actionBar.setTitle(ssb, statusDrawable);\n                updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);'''
-          new = '''                statusDrawable = new AnimatedEmojiDrawable.SwapAnimatedEmojiDrawable(null, dp(26));\n                statusDrawable.center = true;\n                actionBar.setTitle(getString(R.string.AppName), statusDrawable);\n                updateStatus(UserConfig.getInstance(currentAccount).getCurrentUser(), false);'''
-          if old in c:
-              p.write_text(c.replace(old, new), encoding="utf-8")
-              print("title patched")
-          else:
-              print("title already patched or pattern missing")
-          PY
-
-      - name: Restore ApplicationLoader if stubbed + inject theme force
-        run: |
-          set -e
-          SIZE=$(wc -c < TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java || echo 0)
+          AL="TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java"
+          SIZE=$(wc -c < "$AL" || echo 0)
+          echo "AppLoader size=$SIZE"
           if [ "$SIZE" -lt 5000 ]; then
             curl -sL -H "Accept: application/vnd.github.raw+json" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer $GH_TOKEN" \
               "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/5405be7f611ac6ce7c4b36937043e99ffeb7914e" \
-              -o TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
-            echo "ApplicationLoader restored"
-          else
-            echo "ApplicationLoader size=$SIZE"
+              -o "$AL"
+            echo "Restored ApplicationLoader"
           fi
-          python3 << 'PY'
+          python3 -c "
           from pathlib import Path
-          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java")
-          c = p.read_text(encoding="utf-8", errors="replace")
-          if "PLACEHOLDER" in c or "TEMPORARY STUB" in c or len(c) < 5000:
-              raise SystemExit("ApplicationLoader still bad")
-          if "ZoxgramThemeHelper" not in c:
-              old = """        SharedConfig.loadConfig();
-        SharedPrefsHelper.init(applicationContext);"""
-              new = """        SharedConfig.loadConfig();
-        SharedPrefsHelper.init(applicationContext);
-        // Nicegram-style: force Zoxgram Red theme
-        try {
-            AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded);
-        } catch (Throwable ignore) {
-            try {
-                ZoxgramThemeHelper.forceApplyRedThemeIfNeeded();
-            } catch (Throwable ignored) {}
-        }"""
+          p = Path('TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java')
+          c = p.read_text(encoding='utf-8', errors='replace')
+          assert 'class ApplicationLoader' in c
+          if 'ZoxgramThemeHelper' not in c:
+              old = '        SharedConfig.loadConfig();\n        SharedPrefsHelper.init(applicationContext);'
+              new = old + '''\n        // Nicegram-style: force Zoxgram Red theme\n        try {\n            AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded);\n        } catch (Throwable ignore) {\n            try {\n                ZoxgramThemeHelper.forceApplyRedThemeIfNeeded();\n            } catch (Throwable ignored) {}\n        }'''
               if old not in c:
-                  raise SystemExit("inject point missing")
-              c = c.replace(old, new, 1)
-              p.write_text(c, encoding="utf-8")
-              print("theme force injected")
+                  raise SystemExit('inject point missing')
+              p.write_text(c.replace(old, new, 1), encoding='utf-8')
+              print('injected')
           else:
-              print("theme force already present")
-          PY
+              print('already injected')
+          "
+          DA="TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java"
+          DSIZE=$(wc -c < "$DA" || echo 0)
+          if [ "$DSIZE" -lt 10000 ]; then
+            curl -sL -H "Accept: application/vnd.github.raw+json" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/3369eb23273ce99bb8e18d8c38ffac78438d0e5d" \
+              -o "$DA"
+            echo "Restored DialogsActivity"
+          fi
 
-      - name: Harden MessageMetadataHelper
+      - name: Commit
         run: |
-          python3 << 'PY'
-          from pathlib import Path
-          p = Path("TMessagesProj/src/main/java/org/telegram/ui/Components/MessageMetadataHelper.java")
-          if p.exists():
-              c = p.read_text(encoding="utf-8")
-              c2 = c.replace('tv.setTypeface(AndroidUtilities.getTypeface("fonts/rmono.ttf"));', 'tv.setTypeface(android.graphics.Typeface.MONOSPACE);')
-              p.write_text(c2, encoding="utf-8")
-              print("metadata helper ok")
-          PY
-
-      - name: Commit and push
-        run: |
-          git config user.name "zoxgram-bot"
-          git config user.email "bot@zoxgram.local"
+          git config user.name zoxgram-bot
+          git config user.email bot@zoxgram.local
           git add -A
-          git commit -m "Fix ApplicationLoader + Nicegram-style force Zoxgram Red theme" || echo "nothing"
+          git commit -m "Restore ApplicationLoader + force Zoxgram Red theme" || true
           git push
