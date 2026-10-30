@@ -11,34 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inject
+      - name: Inject theme helper call
         run: |
-          python3 << 'PY'
-          from pathlib import Path
-          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java")
-          c = p.read_text(encoding="utf-8")
-          if "ZoxgramThemeHelper" in c:
-              print("already done")
-          else:
-              marker = "SharedPrefsHelper.init(applicationContext);"
-              idx = c.find(marker)
-              if idx < 0:
-                  raise SystemExit("marker not found")
-              insert = marker + """
-        // Nicegram-style: force Zoxgram Red theme
-        try {
-            AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded);
-        } catch (Throwable ignore) {
-            try {
-                ZoxgramThemeHelper.forceApplyRedThemeIfNeeded();
-            } catch (Throwable ignored) {}
-        }"""
-              c = c[:idx] + insert + c[idx+len(marker):]
-              p.write_text(c, encoding="utf-8")
-              print("injected ok", len(c))
-          PY
+          FILE=TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+          if grep -q ZoxgramThemeHelper "$FILE"; then
+            echo already
+          else
+            python3 -c "import pathlib;p=pathlib.Path('$FILE');c=p.read_text();m='SharedPrefsHelper.init(applicationContext);';i=c.find(m);assert i>=0;ins=m+chr(10)+'        // Nicegram-style force Zoxgram Red'+chr(10)+'        try { AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded); } catch (Throwable e1) { try { ZoxgramThemeHelper.forceApplyRedThemeIfNeeded(); } catch (Throwable e2) {} }';p.write_text(c[:i]+ins+c[i+len(m):]);print('ok',len(c))"
+          fi
           git config user.name zoxgram-bot
           git config user.email bot@zoxgram.local
           git add -A
-          git commit -m "Inject ZoxgramThemeHelper force apply into ApplicationLoader" || true
+          git commit -m "Inject ZoxgramThemeHelper into ApplicationLoader" || true
           git push
