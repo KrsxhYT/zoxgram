@@ -16,7 +16,6 @@ import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
-/** Session backup — file only. */
 public class ZoxgramSessionActivity extends UniversalFragment {
 
     private static final int ROW_EXPORT = 1;
@@ -56,7 +55,7 @@ public class ZoxgramSessionActivity extends UniversalFragment {
         } else if (item.id == ROW_IMPORT) {
             new AlertDialog.Builder(a, getResourceProvider())
                     .setTitle("Import")
-                    .setMessage("Place zoxgram_sessions.zoxbackup in app files and re-open. Full session restore comes in a later part.")
+                    .setMessage("Place zoxgram_sessions.zoxbackup in app files. Full session restore comes later.")
                     .setPositiveButton("OK", null)
                     .show();
         } else if (item.id == ROW_DELETE) {
@@ -73,5 +72,7 @@ public class ZoxgramSessionActivity extends UniversalFragment {
     }
 
     @Override
-    public void onLongClick(UItem item, View view, int position, float x, float y) {}
+    public boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        return false;
+    }
 }

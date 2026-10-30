@@ -5,7 +5,6 @@ import android.view.View;
 import com.zoxgram.features.ZoxgramConfig;
 
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.Cells.TextCheckCell2;
 import org.telegram.ui.Components.UItem;
@@ -14,21 +13,18 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Part 3 — General (translate, general toggles, speed, profile). */
+/** Part 3 — General. */
 public class ZoxgramGeneralActivity extends UniversalFragment {
 
     private static final int ROW_SHOW_TRANSLATE = 1;
     private static final int ROW_TRANSLATE_PROVIDER = 2;
     private static final int ROW_DO_NOT_TRANSLATE = 3;
-
     private static final int ROW_DISABLE_ROUNDING = 10;
     private static final int ROW_TIME_SECONDS = 11;
     private static final int ROW_VIBRATION = 12;
     private static final int ROW_ZALGO = 13;
-
     private static final int ROW_DL_BOOST = 20;
     private static final int ROW_UL_BOOST = 21;
-
     private static final int ROW_SHOW_CHAT_ID = 30;
     private static final int ROW_SHOW_REG_DATE = 31;
     private static final int ROW_SHOW_NOTES = 32;
@@ -156,11 +152,13 @@ public class ZoxgramGeneralActivity extends UniversalFragment {
     }
 
     private void refresh() {
-        if (listView != null && listView.getAdapter() instanceof UniversalAdapter) {
-            ((UniversalAdapter) listView.getAdapter()).update(true);
+        if (listView != null && listView.adapter != null) {
+            listView.adapter.update(true);
         }
     }
 
     @Override
-    public void onLongClick(UItem item, View view, int position, float x, float y) {}
+    public boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        return false;
+    }
 }

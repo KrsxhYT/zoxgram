@@ -5,7 +5,6 @@ import android.view.View;
 import com.zoxgram.features.ZoxgramConfig;
 
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.R;
 import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.Cells.TextCheckCell2;
 import org.telegram.ui.Components.UItem;
@@ -14,7 +13,7 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Part 2 — Customization (local premium, deleted msgs, ads). */
+/** Part 2 — Customization. */
 public class ZoxgramCustomizationActivity extends UniversalFragment {
 
     private static final int ROW_LOCAL_PREMIUM = 1;
@@ -42,8 +41,11 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
         items.add(UItem.asHeader("Deleted messages"));
         items.add(UItem.asSwitchNoIcon(ROW_TRANSLUCENT_DELETED, "Translucent Deleted Messages")
                 .setChecked(ZoxgramConfig.isTranslucentDeleted()));
-        items.add(UItem.asButton(ROW_DELETED_ICON, "Deleted Mark", ICON_LABELS[Math.min(3, Math.max(0, ZoxgramConfig.getDeletedIconStyle()))]));
-        items.add(UItem.asButton(ROW_DELETED_COLOR, "Deleted icon colour", String.format("#%06X", (0xFFFFFF & ZoxgramConfig.getDeletedIconColor()))));
+        int iconIdx = ZoxgramConfig.getDeletedIconStyle();
+        if (iconIdx < 0 || iconIdx >= ICON_LABELS.length) iconIdx = 0;
+        items.add(UItem.asButton(ROW_DELETED_ICON, "Deleted Mark", ICON_LABELS[iconIdx]));
+        items.add(UItem.asButton(ROW_DELETED_COLOR, "Deleted icon colour",
+                String.format("#%06X", (0xFFFFFF & ZoxgramConfig.getDeletedIconColor()))));
         items.add(UItem.asShadow("Icon under deleted messages. Customise style and colour."));
 
         items.add(UItem.asHeader("Ads"));
@@ -61,10 +63,7 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
                     .setTitle("Deleted Mark")
                     .setItems(ICON_LABELS, (d, which) -> {
                         ZoxgramConfig.setInt(ZoxgramConfig.KEY_DELETED_ICON, which);
-                        if (listView != null && listView.getAdapter() != null) {
-                            listView.getAdapter().notifyDataSetChanged();
-                        }
-                        updateAdapter();
+                        refresh();
                     })
                     .show();
             return;
@@ -79,7 +78,7 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
                     .setTitle("Deleted icon colour")
                     .setItems(labels, (d, which) -> {
                         ZoxgramConfig.setInt(ZoxgramConfig.KEY_DELETED_ICON_COLOR, colors[which]);
-                        updateAdapter();
+                        refresh();
                     })
                     .show();
             return;
@@ -89,17 +88,11 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
         boolean def;
         switch (item.id) {
             case ROW_LOCAL_PREMIUM:
-                key = ZoxgramConfig.KEY_LOCAL_PREMIUM;
-                def = false;
-                break;
+                key = ZoxgramConfig.KEY_LOCAL_PREMIUM; def = false; break;
             case ROW_TRANSLUCENT_DELETED:
-                key = ZoxgramConfig.KEY_TRANSLUCENT_DELETED;
-                def = true;
-                break;
+                key = ZoxgramConfig.KEY_TRANSLUCENT_DELETED; def = true; break;
             case ROW_DISABLE_ADS:
-                key = ZoxgramConfig.KEY_DISABLE_ADS;
-                def = true;
-                break;
+                key = ZoxgramConfig.KEY_DISABLE_ADS; def = true; break;
             default:
                 return;
         }
@@ -108,16 +101,18 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
         if (view instanceof TextCheckCell2) {
             ((TextCheckCell2) view).setChecked(next);
         } else {
-            updateAdapter();
+            refresh();
         }
     }
 
-    private void updateAdapter() {
-        if (listView != null && listView.getAdapter() instanceof UniversalAdapter) {
-            ((UniversalAdapter) listView.getAdapter()).update(true);
+    private void refresh() {
+        if (listView != null && listView.adapter != null) {
+            listView.adapter.update(true);
         }
     }
 
     @Override
-    public void onLongClick(UItem item, View view, int position, float x, float y) {}
+    public boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        return false;
+    }
 }

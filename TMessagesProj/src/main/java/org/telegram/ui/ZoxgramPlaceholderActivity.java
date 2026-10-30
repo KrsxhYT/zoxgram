@@ -8,7 +8,6 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Temporary placeholder for parts not yet built. */
 public class ZoxgramPlaceholderActivity extends UniversalFragment {
 
     private final String title;
@@ -34,5 +33,7 @@ public class ZoxgramPlaceholderActivity extends UniversalFragment {
     protected void onClick(UItem item, View view, int position, float x, float y) {}
 
     @Override
-    public void onLongClick(UItem item, View view, int position, float x, float y) {}
+    public boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        return false;
+    }
 }

@@ -12,7 +12,6 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Existing media feature toggles (from earlier Nicegram-style work). */
 public class ZoxgramMediaActivity extends UniversalFragment {
 
     private static final int ROW_VOICE = 1;
@@ -44,7 +43,6 @@ public class ZoxgramMediaActivity extends UniversalFragment {
     protected void onClick(UItem item, View view, int position, float x, float y) {
         ZoxgramConfig.init(ApplicationLoader.applicationContext);
         String key;
-        boolean def = true;
         switch (item.id) {
             case ROW_VOICE: key = ZoxgramConfig.KEY_VOICE_DOWNLOAD; break;
             case ROW_SPEECH: key = ZoxgramConfig.KEY_SPEECH2TEXT; break;
@@ -52,7 +50,7 @@ public class ZoxgramMediaActivity extends UniversalFragment {
             case ROW_CALL_REC: key = ZoxgramConfig.KEY_GROUP_CALL_RECORDER; break;
             default: return;
         }
-        boolean next = !ZoxgramConfig.get(key, def);
+        boolean next = !ZoxgramConfig.get(key, true);
         ZoxgramConfig.set(key, next);
         if (view instanceof TextCheckCell2) {
             ((TextCheckCell2) view).setChecked(next);
@@ -60,5 +58,7 @@ public class ZoxgramMediaActivity extends UniversalFragment {
     }
 
     @Override
-    public void onLongClick(UItem item, View view, int position, float x, float y) {}
+    public boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        return false;
+    }
 }
