@@ -1,0 +1,124 @@
+name: Restore ApplicationLoader + theme force
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore ApplicationLoader and inject theme force
+        run: |
+          set -e
+          curl -sL -H "Accept: application/vnd.github.raw+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/KrsxhYT/zoxgram/git/blobs/5405be7f611ac6ce7c4b36937043e99ffeb7914e" \
+            -o TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java
+
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java")
+          c = p.read_text(encoding="utf-8", errors="replace")
+          print("restored size", len(c))
+          assert "class ApplicationLoader" in c and "postInitApplication" in c
+
+          old = """        SharedConfig.loadConfig();
+        SharedPrefsHelper.init(applicationContext);"""
+          new = """        SharedConfig.loadConfig();
+        SharedPrefsHelper.init(applicationContext);
+        // Nicegram-style: force Zoxgram Red theme
+        try {
+            AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded);
+        } catch (Throwable ignore) {
+            try {
+                ZoxgramThemeHelper.forceApplyRedThemeIfNeeded();
+            } catch (Throwable ignored) {}
+        }"""
+          if "ZoxgramThemeHelper" not in c:
+              if old in c:
+                  c = c.replace(old, new, 1)
+                  print("theme force injected")
+              else:
+                  raise SystemExit("injection point not found")
+          else:
+              print("already injected")
+
+          p.write_text(c, encoding="utf-8")
+          print("final size", len(c))
+          PY
+
+      - name: Harden MessageMetadataHelper (safe typeface)
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/ui/Components/MessageMetadataHelper.java")
+          if not p.exists():
+              print("no helper"); raise SystemExit(0)
+          c = p.read_text(encoding="utf-8")
+          c2 = c.replace(
+              'tv.setTypeface(AndroidUtilities.getTypeface("fonts/rmono.ttf"));',
+              'tv.setTypeface(android.graphics.Typeface.MONOSPACE);'
+          )
+          if c2 != c:
+              p.write_text(c2, encoding="utf-8")
+              print("MetadataHelper typeface hardened")
+          else:
+              print("MetadataHelper ok")
+          PY
+
+      - name: Ensure Theme prefs default to Zoxgram Red when theme is null
+        run: |
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/ui/ActionBar/Theme.java")
+          c = p.read_text(encoding="utf-8", errors="replace")
+          # Ensure null theme maps to Zoxgram Red
+          if 'applyingTheme = themesDict.get("Zoxgram Red");' not in c:
+              c = c.replace(
+                  'if (theme == null) {\n                applyingTheme = defaultTheme;',
+                  'if (theme == null) {\n                applyingTheme = themesDict.get("Zoxgram Red");\n                if (applyingTheme == null) applyingTheme = defaultTheme;',
+                  1
+              )
+              print("theme null default patched")
+          else:
+              print("theme null default already set")
+          # Ensure defaultTheme assignment after Zoxgram Red registration
+          needle = '''        themesDict.put(themeInfo.name, themeInfo);
+        defaultTheme = themeInfo;
+        currentDayTheme = themeInfo;'''
+          if "Zoxgram Red" in c and "defaultTheme = themeInfo;" not in c.split("Zoxgram Red")[1][:400]:
+              old = '''        themes.add(themeInfo);
+        themesDict.put(themeInfo.name, themeInfo);'''
+              # only the Zoxgram Red block - find unique context
+              ctx = '''        themeInfo.name = "Zoxgram Red";
+        themeInfo.assetName = "zoxgram_red.attheme";
+        themeInfo.previewBackgroundColor = 0xff151515;
+        themeInfo.previewInColor = 0xff1f1f1f;
+        themeInfo.previewOutColor = 0xffcf7373;
+        themeInfo.isDark = ThemeInfo.DARK;
+        themeInfo.sortIndex = 0;
+        themes.add(themeInfo);
+        themesDict.put(themeInfo.name, themeInfo);'''
+              repl = ctx + '''
+        defaultTheme = themeInfo;
+        currentDayTheme = themeInfo;'''
+              if ctx in c and "defaultTheme = themeInfo;" not in c[c.find("Zoxgram Red"):c.find("Zoxgram Red")+500]:
+                  c = c.replace(ctx, repl, 1)
+                  print("defaultTheme forced")
+          p.write_text(c, encoding="utf-8")
+          print("Theme.java size", len(c))
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "zoxgram-bot"
+          git config user.email "bot@zoxgram.local"
+          git add -A
+          git status
+          git commit -m "Restore ApplicationLoader + Nicegram-style force Zoxgram Red theme" || echo "nothing"
+          git push
