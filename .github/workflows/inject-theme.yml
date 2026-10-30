@@ -13,28 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inject theme helper call
         run: |
-          python3 -c "
-          import pathlib
-          p = pathlib.Path('TMessagesProj/src/main/java/org/telegram/messenger/ApplicationLoader.java')
-          c = p.read_text(encoding='utf-8')
-          if 'ZoxgramThemeHelper' in c:
-              print('already')
-          else:
-              m = 'SharedPrefsHelper.init(applicationContext);'
-              i = c.find(m)
-              assert i >= 0
-              extra = '''
-        // Nicegram-style force Zoxgram Red theme
-        try {
-            AndroidUtilities.runOnUIThread(ZoxgramThemeHelper::forceApplyRedThemeIfNeeded);
-        } catch (Throwable ignore) {
-            try {
-                ZoxgramThemeHelper.forceApplyRedThemeIfNeeded();
-            } catch (Throwable ignored) {}
-        }'''
-              p.write_text(c[:i] + m + extra + c[i+len(m):], encoding='utf-8')
-              print('injected')
-          "
+          echo CmltcG9ydCBwYXRobGliCnAgPSBwYXRobGliLlBhdGgoIlRNZXNzYWdlc1Byb2ovc3JjL21haW4vamF2YS9vcmcvdGVsZWdyYW0vbWVzc2VuZ2VyL0FwcGxpY2F0aW9uTG9hZGVyLmphdmEiKQpjID0gcC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKaWYgIlpveGdyYW1UaGVtZUhlbHBlciIgaW4gYzoKICAgIHByaW50KCJhbHJlYWR5IikKZWxzZToKICAgIG0gPSAiU2hhcmVkUHJlZnNIZWxwZXIuaW5pdChhcHBsaWNhdGlvbkNvbnRleHQpOyIKICAgIGkgPSBjLmZpbmQobSkKICAgIGFzc2VydCBpID49IDAKICAgIGV4dHJhID0gIiIiCiAgICAgICAgLy8gTmljZWdyYW0tc3R5bGUgZm9yY2UgWm94Z3JhbSBSZWQgdGhlbWUKICAgICAgICB0cnkgewogICAgICAgICAgICBBbmRyb2lkVXRpbGl0aWVzLnJ1bk9uVUlUaHJlYWQoWm94Z3JhbVRoZW1lSGVscGVyOjpmb3JjZUFwcGx5UmVkVGhlbWVJZk5lZWRlZCk7CiAgICAgICAgfSBjYXRjaCAoVGhyb3dhYmxlIGlnbm9yZSkgewogICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgWm94Z3JhbVRoZW1lSGVscGVyLmZvcmNlQXBwbHlSZWRUaGVtZUlmTmVlZGVkKCk7CiAgICAgICAgICAgIH0gY2F0Y2ggKFRocm93YWJsZSBpZ25vcmVkKSB7fQogICAgICAgIH0iIiIKICAgIHAud3JpdGVfdGV4dChjWzppXSArIG0gKyBleHRyYSArIGNbaStsZW4obSk6XSwgZW5jb2Rpbmc9InV0Zi04IikKICAgIHByaW50KCJpbmplY3RlZCIpCg== | base64 -d > /tmp/inject.py
+          python3 /tmp/inject.py
           git config user.name zoxgram-bot
           git config user.email bot@zoxgram.local
           git add -A
