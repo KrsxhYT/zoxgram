@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/patch-ads-and-ui.yml'
+      - 'zoxgram-features/src/main/java/com/zoxgram/features/ZoxgramAds.java'
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -13,36 +14,51 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Patch getSponsoredMessages for Disable Ads
+      - name: Insert Disable Ads early return
         run: |
-          set -e
-          FILE=TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java
-          python3 << 'PY'
+          set -euo pipefail
+          FILE="TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java"
+          if grep -q 'Zoxgram: Disable Ads' "$FILE"; then
+            echo already_patched
+            exit 0
+          fi
+          python3 -c "
           from pathlib import Path
-          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java")
-          t = p.read_text()
-          needle = "    public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {\n        SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);"
-          insert = """    public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
-        // Zoxgram: Disable Ads — skip sponsored messages entirely
-        try {
-            com.zoxgram.features.ZoxgramConfig.init(ApplicationLoader.applicationContext);
-            if (com.zoxgram.features.ZoxgramConfig.isDisableAds()) {
-                return null;
-            }
-        } catch (Throwable ignore) {}
-        SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);"""
-          if "Zoxgram: Disable Ads" in t:
-              print("already patched")
-          elif needle not in t:
-              raise SystemExit("needle not found")
-          else:
-              p.write_text(t.replace(needle, insert, 1))
-              print("patched ads")
-          PY
+          p = Path('$FILE')
+          lines = p.read_text().splitlines(True)
+          out = []
+          i = 0
+          while i < len(lines):
+              line = lines[i]
+              out.append(line)
+              if 'public SponsoredMessagesInfo getSponsoredMessages(long dialogId)' in line:
+                  # next line should be opening brace already on same or next
+                  if '{' in line:
+                      out.append('        // Zoxgram: Disable Ads\n')
+                      out.append('        try {\n')
+                      out.append('            if (com.zoxgram.features.ZoxgramAds.shouldBlockSponsored(ApplicationLoader.applicationContext)) {\n')
+                      out.append('                return null;\n')
+                      out.append('            }\n')
+                      out.append('        } catch (Throwable ignore) {}\n')
+                  elif i+1 < len(lines) and '{' in lines[i+1]:
+                      out.append(lines[i+1])
+                      i += 1
+                      out.append('        // Zoxgram: Disable Ads\n')
+                      out.append('        try {\n')
+                      out.append('            if (com.zoxgram.features.ZoxgramAds.shouldBlockSponsored(ApplicationLoader.applicationContext)) {\n')
+                      out.append('                return null;\n')
+                      out.append('            }\n')
+                      out.append('        } catch (Throwable ignore) {}\n')
+              i += 1
+          p.write_text(''.join(out))
+          print('done', p.stat().st_size)
+          "
+          grep -n 'Zoxgram: Disable Ads' "$FILE" | head -3
       - name: Commit
         run: |
           git config user.name zoxgram-bot
           git config user.email bot@zoxgram.local
           git add -A
+          git status
           git commit -m "Hook Disable Ads into getSponsoredMessages" || exit 0
           git push
