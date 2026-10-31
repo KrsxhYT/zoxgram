@@ -1,0 +1,51 @@
+name: Restore UserConfig
+on:
+  workflow_dispatch:
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Restore and patch UserConfig
+        run: |
+          git checkout 753f10f8fb5cbc5bb523a69b71411db3f7f60a66 -- TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java")
+          t = p.read_text()
+          old = """    public boolean isPremium() {
+        TLRPC.User user = currentUser;
+        if (user == null) {
+            return false;
+        }
+        return user.premium;
+    }"""
+          new = """    public boolean isPremium() {
+        // Zoxgram Local Telegram Premium — client-side unlock (premium emoji UI, etc.)
+        try {
+            com.zoxgram.features.ZoxgramConfig.init(ApplicationLoader.applicationContext);
+            if (com.zoxgram.features.ZoxgramConfig.isLocalPremium()) {
+                return true;
+            }
+        } catch (Throwable ignore) {}
+        TLRPC.User user = currentUser;
+        if (user == null) {
+            return false;
+        }
+        return user.premium;
+    }"""
+          if old not in t:
+              raise SystemExit("pattern not found")
+          p.write_text(t.replace(old, new, 1))
+          print("patched", p.stat().st_size)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "zoxgram-bot"
+          git config user.email "bot@zoxgram.local"
+          git add TMessagesProj/src/main/java/org/telegram/messenger/UserConfig.java
+          git commit -m "Restore UserConfig + Local Telegram Premium isPremium hook" || echo "no change"
+          git push
