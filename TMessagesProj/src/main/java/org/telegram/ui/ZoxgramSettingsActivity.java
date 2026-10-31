@@ -56,10 +56,10 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
                 presentFragment(new ZoxgramCustomizationActivity());
                 break;
             case ROW_APPEARANCE:
-                presentFragment(new ZoxgramPlaceholderActivity("Appearance", "Part 4 — coming next"));
+                presentFragment(new ZoxgramAppearanceActivity());
                 break;
             case ROW_CHATS:
-                presentFragment(new ZoxgramPlaceholderActivity("Chats", "Part 5–6 — coming next"));
+                presentFragment(new ZoxgramChatsActivity());
                 break;
             case ROW_MEDIA:
                 presentFragment(new ZoxgramMediaActivity());

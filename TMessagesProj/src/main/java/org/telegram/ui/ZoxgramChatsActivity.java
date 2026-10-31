@@ -13,14 +13,13 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Part 5 — Chats (stickers + messages). Part 6 camera linked from here. */
+/** Part 5 — Chats (stickers + messages). */
 public class ZoxgramChatsActivity extends UniversalFragment {
 
     private static final int ROW_STICKER_SIZE = 1;
     private static final int ROW_HIDE_TIME_STICKER = 2;
     private static final int ROW_STICKER_SHAPE = 3;
     private static final int ROW_UNLIMITED_RECENT = 4;
-    private static final int ROW_CHAT_SETTINGS = 5;
 
     private static final int ROW_REMOVE_TAIL = 10;
     private static final int ROW_EDITED_ICON = 11;
@@ -50,7 +49,6 @@ public class ZoxgramChatsActivity extends UniversalFragment {
         items.add(UItem.asButton(ROW_STICKER_SHAPE, "Sticker Shape", SHAPES[shape]));
         items.add(UItem.asSwitchNoIcon(ROW_UNLIMITED_RECENT, "Unlimited Recent Stickers")
                 .setChecked(ZoxgramConfig.isUnlimitedRecentStickers()));
-        items.add(UItem.asButton(ROW_CHAT_SETTINGS, "Chat Settings", "Open Telegram chat settings"));
 
         items.add(UItem.asHeader("Messages"));
         items.add(UItem.asSwitchNoIcon(ROW_REMOVE_TAIL, "Remove Message Tail")
@@ -73,18 +71,6 @@ public class ZoxgramChatsActivity extends UniversalFragment {
 
         if (item.id == ROW_CAMERA) {
             presentFragment(new ZoxgramCameraActivity());
-            return;
-        }
-        if (item.id == ROW_CHAT_SETTINGS) {
-            presentFragment(new ChatActivityEnterView.ChatActivityEnterViewDelegatePlaceholder() == null
-                    ? new NotificationsSettingsActivity()
-                    : new NotificationsSettingsActivity());
-            // Open standard chat settings if available
-            try {
-                presentFragment(new ThemeActivity(ThemeActivity.THEME_TYPE_BASIC));
-            } catch (Throwable ignore) {
-                presentFragment(new NotificationsSettingsActivity());
-            }
             return;
         }
         if (item.id == ROW_STICKER_SIZE) {
