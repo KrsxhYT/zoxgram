@@ -13,7 +13,9 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Part 2 — Customization. */
+/**
+ * Customization — Local Premium, deleted mark, disable ads (exteraGram/AyuGram-style).
+ */
 public class ZoxgramCustomizationActivity extends UniversalFragment {
 
     private static final int ROW_LOCAL_PREMIUM = 1;
@@ -33,10 +35,8 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         ZoxgramConfig.init(ApplicationLoader.applicationContext);
 
-        items.add(UItem.asHeader("Useful features"));
-        items.add(UItem.asSwitchNoIcon(ROW_LOCAL_PREMIUM, "Local Telegram Premium")
-                .setChecked(ZoxgramConfig.isLocalPremium()));
-        items.add(UItem.asShadow("Activates client-side premium features. It won't increase your limits on pin amount, caption length, etc."));
+        items.add(UItem.asHeader("Customization"));
+        items.add(UItem.asShadow("Deleted messages preview uses the mark style below in supported cells."));
 
         items.add(UItem.asHeader("Deleted messages"));
         items.add(UItem.asSwitchNoIcon(ROW_TRANSLUCENT_DELETED, "Translucent Deleted Messages")
@@ -44,14 +44,18 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
         int iconIdx = ZoxgramConfig.getDeletedIconStyle();
         if (iconIdx < 0 || iconIdx >= ICON_LABELS.length) iconIdx = 0;
         items.add(UItem.asButton(ROW_DELETED_ICON, "Deleted Mark", ICON_LABELS[iconIdx]));
-        items.add(UItem.asButton(ROW_DELETED_COLOR, "Deleted icon colour",
+        items.add(UItem.asButton(ROW_DELETED_COLOR, "Deleted Mark colour",
                 String.format("#%06X", (0xFFFFFF & ZoxgramConfig.getDeletedIconColor()))));
-        items.add(UItem.asShadow("Icon under deleted messages. Customise style and colour."));
+        items.add(UItem.asShadow("Choose dustbin / cross / eye / none. Colour applies to the mark icon."));
 
-        items.add(UItem.asHeader("Ads"));
+        items.add(UItem.asHeader("Useful features"));
+        items.add(UItem.asSwitchNoIcon(ROW_LOCAL_PREMIUM, "Local Telegram Premium")
+                .setChecked(ZoxgramConfig.isLocalPremium()));
+        items.add(UItem.asShadow("Activates client-side premium features (e.g. premium emoji UI). It won't increase your limits on pin amount, caption length, etc."));
+
         items.add(UItem.asSwitchNoIcon(ROW_DISABLE_ADS, "Disable Ads")
                 .setChecked(ZoxgramConfig.isDisableAds()));
-        items.add(UItem.asShadow("Hides Telegram promotional posts in this client."));
+        items.add(UItem.asShadow("Hides sponsored / promotional posts inside Zoxgram."));
     }
 
     @Override
@@ -75,7 +79,7 @@ public class ZoxgramCustomizationActivity extends UniversalFragment {
             };
             String[] labels = {"Red", "Bright red", "Pink", "Purple", "Deep purple", "Indigo", "Blue", "Grey"};
             new AlertDialog.Builder(getParentActivity(), getResourceProvider())
-                    .setTitle("Deleted icon colour")
+                    .setTitle("Deleted Mark colour")
                     .setItems(labels, (d, which) -> {
                         ZoxgramConfig.setInt(ZoxgramConfig.KEY_DELETED_ICON_COLOR, colors[which]);
                         refresh();

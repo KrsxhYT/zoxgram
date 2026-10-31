@@ -1,0 +1,48 @@
+name: Patch ads hook
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/patch-ads-and-ui.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch getSponsoredMessages for Disable Ads
+        run: |
+          set -e
+          FILE=TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("TMessagesProj/src/main/java/org/telegram/messenger/MessagesController.java")
+          t = p.read_text()
+          needle = "    public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {\n        SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);"
+          insert = """    public SponsoredMessagesInfo getSponsoredMessages(long dialogId) {
+        // Zoxgram: Disable Ads — skip sponsored messages entirely
+        try {
+            com.zoxgram.features.ZoxgramConfig.init(ApplicationLoader.applicationContext);
+            if (com.zoxgram.features.ZoxgramConfig.isDisableAds()) {
+                return null;
+            }
+        } catch (Throwable ignore) {}
+        SponsoredMessagesInfo info = sponsoredMessages.get(dialogId);"""
+          if "Zoxgram: Disable Ads" in t:
+              print("already patched")
+          elif needle not in t:
+              raise SystemExit("needle not found")
+          else:
+              p.write_text(t.replace(needle, insert, 1))
+              print("patched ads")
+          PY
+      - name: Commit
+        run: |
+          git config user.name zoxgram-bot
+          git config user.email bot@zoxgram.local
+          git add -A
+          git commit -m "Hook Disable Ads into getSponsoredMessages" || exit 0
+          git push

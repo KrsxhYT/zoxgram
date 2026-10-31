@@ -10,12 +10,10 @@ import org.telegram.ui.Components.UniversalFragment;
 import java.util.ArrayList;
 
 /**
- * Part 1 — Zoxgram Settings hub.
- * KEY_* constants kept for ProfileActivity / ContactAddActivity compatibility.
+ * Zoxgram Settings hub — category layout aligned with exteraGram-style screenshots.
  */
 public class ZoxgramSettingsActivity extends UniversalFragment {
 
-    // Used by ProfileActivity rows — do not remove
     public static final String KEY_SHOW_CHAT_ID = "zoxgram_show_chat_id";
     public static final String KEY_SHOW_REGISTRATION_DATE = "zoxgram_show_registration_date";
     public static final String KEY_SHOW_CONTACT_NOTES = "zoxgram_show_contact_notes";
@@ -42,23 +40,23 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
         items.add(UItem.asHeader("Categories"));
 
         items.add(UItem.asButton(ROW_GENERAL, R.drawable.settings_features, "General",
-                "Translate, profile, speed boost"));
+                "Translate, maps, download boost, profile"));
         items.add(UItem.asButton(ROW_APPEARANCE, R.drawable.settings_chat, "Appearance",
-                "Chat list, folders, snowflakes"));
+                "Chat list, folders, snowflakes, titles"));
         items.add(UItem.asButton(ROW_CHATS, R.drawable.settings_chat, "Chats",
-                "Stickers, messages, camera, media"));
+                "Stickers, messages, camera, photos, videos"));
         items.add(UItem.asButton(ROW_CUSTOMIZATION, R.drawable.settings_premium, "Customization",
-                "Local premium, deleted style, ads"));
+                "Local premium, deleted mark, disable ads"));
 
-        items.add(UItem.asShadow("More"));
+        items.add(UItem.asHeader("More"));
         items.add(UItem.asButton(ROW_CHAT_EXTRAS, R.drawable.settings_privacy, "Chat extras",
-                "View deleted, to beginning, official badge"));
+                "View deleted, to beginning, official badges"));
         items.add(UItem.asButton(ROW_MEDIA, R.drawable.settings_data, "Media features",
-                "Voice download, speech2text, circle video"));
+                "Voice download, Speech2Text, circle video"));
         items.add(UItem.asButton(ROW_SESSION, R.drawable.settings_devices, "Session Backup",
-                "Export / import local file"));
+                "Export / import accounts to local file"));
 
-        items.add(UItem.asShadow("Zoxgram — local only, no Google Cloud."));
+        items.add(UItem.asShadow("Zoxgram — local features only. No Google Cloud."));
     }
 
     @Override
