@@ -1,5 +1,6 @@
 package org.telegram.ui;
 
+import android.content.SharedPreferences;
 import android.view.View;
 
 import com.zoxgram.features.ZoxgramConfig;
@@ -13,7 +14,7 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Part 3 — General. */
+/** Part 3 — General. Dual-writes profile flags to MainSettings for ProfileActivity. */
 public class ZoxgramGeneralActivity extends UniversalFragment {
 
     private static final int ROW_SHOW_TRANSLATE = 1;
@@ -43,6 +44,7 @@ public class ZoxgramGeneralActivity extends UniversalFragment {
     @Override
     protected void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         ZoxgramConfig.init(ApplicationLoader.applicationContext);
+        SharedPreferences main = getMessagesController().getMainSettings();
 
         items.add(UItem.asHeader("Translate Messages"));
         items.add(UItem.asSwitchNoIcon(ROW_SHOW_TRANSLATE, "Show Translate Button")
@@ -74,12 +76,12 @@ public class ZoxgramGeneralActivity extends UniversalFragment {
         items.add(UItem.asShadow("Ultra Boost can cause problems on slow connections."));
 
         items.add(UItem.asHeader("Profile"));
-        items.add(UItem.asSwitchNoIcon(ROW_SHOW_CHAT_ID, "Show Chat ID")
-                .setChecked(ZoxgramConfig.isShowChatId()));
-        items.add(UItem.asSwitchNoIcon(ROW_SHOW_REG_DATE, "Show Registration Date")
-                .setChecked(ZoxgramConfig.isShowRegDate()));
-        items.add(UItem.asSwitchNoIcon(ROW_SHOW_NOTES, "Show Profile Notes")
-                .setChecked(ZoxgramConfig.isShowNotes()));
+        boolean showId = main.getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CHAT_ID, ZoxgramConfig.isShowChatId());
+        boolean showReg = main.getBoolean(ZoxgramSettingsActivity.KEY_SHOW_REGISTRATION_DATE, ZoxgramConfig.isShowRegDate());
+        boolean showNotes = main.getBoolean(ZoxgramSettingsActivity.KEY_SHOW_CONTACT_NOTES, ZoxgramConfig.isShowNotes());
+        items.add(UItem.asSwitchNoIcon(ROW_SHOW_CHAT_ID, "Show Chat ID").setChecked(showId));
+        items.add(UItem.asSwitchNoIcon(ROW_SHOW_REG_DATE, "Show Registration Date").setChecked(showReg));
+        items.add(UItem.asSwitchNoIcon(ROW_SHOW_NOTES, "Show Profile Notes").setChecked(showNotes));
         items.add(UItem.asSwitchNoIcon(ROW_HIDE_PHONE, "Hide Phone Number")
                 .setChecked(ZoxgramConfig.isHidePhoneInProfile()));
         items.add(UItem.asShadow("Hides only your phone number on your profile."));
@@ -126,6 +128,31 @@ public class ZoxgramGeneralActivity extends UniversalFragment {
             return;
         }
 
+        // Profile flags dual-write to MainSettings (ProfileActivity reads these)
+        if (item.id == ROW_SHOW_CHAT_ID || item.id == ROW_SHOW_REG_DATE || item.id == ROW_SHOW_NOTES) {
+            SharedPreferences main = getMessagesController().getMainSettings();
+            String mainKey;
+            String configKey;
+            boolean def = true;
+            if (item.id == ROW_SHOW_CHAT_ID) {
+                mainKey = ZoxgramSettingsActivity.KEY_SHOW_CHAT_ID;
+                configKey = ZoxgramConfig.KEY_SHOW_CHAT_ID;
+            } else if (item.id == ROW_SHOW_REG_DATE) {
+                mainKey = ZoxgramSettingsActivity.KEY_SHOW_REGISTRATION_DATE;
+                configKey = ZoxgramConfig.KEY_SHOW_REG_DATE;
+            } else {
+                mainKey = ZoxgramSettingsActivity.KEY_SHOW_CONTACT_NOTES;
+                configKey = ZoxgramConfig.KEY_SHOW_NOTES;
+            }
+            boolean next = !main.getBoolean(mainKey, def);
+            main.edit().putBoolean(mainKey, next).apply();
+            ZoxgramConfig.set(configKey, next);
+            if (view instanceof TextCheckCell2) {
+                ((TextCheckCell2) view).setChecked(next);
+            }
+            return;
+        }
+
         String key;
         boolean def;
         switch (item.id) {
@@ -135,9 +162,6 @@ public class ZoxgramGeneralActivity extends UniversalFragment {
             case ROW_VIBRATION: key = ZoxgramConfig.KEY_IN_APP_VIBRATION; def = true; break;
             case ROW_ZALGO: key = ZoxgramConfig.KEY_FILTER_ZALGO; def = false; break;
             case ROW_UL_BOOST: key = ZoxgramConfig.KEY_UPLOAD_SPEED_BOOST; def = false; break;
-            case ROW_SHOW_CHAT_ID: key = ZoxgramConfig.KEY_SHOW_CHAT_ID; def = true; break;
-            case ROW_SHOW_REG_DATE: key = ZoxgramConfig.KEY_SHOW_REG_DATE; def = true; break;
-            case ROW_SHOW_NOTES: key = ZoxgramConfig.KEY_SHOW_NOTES; def = true; break;
             case ROW_HIDE_PHONE: key = ZoxgramConfig.KEY_HIDE_PHONE; def = true; break;
             case ROW_RELATIVE_LAST_SEEN: key = ZoxgramConfig.KEY_RELATIVE_LAST_SEEN; def = false; break;
             default: return;

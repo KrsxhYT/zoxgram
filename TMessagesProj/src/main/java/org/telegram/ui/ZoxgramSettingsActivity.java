@@ -9,8 +9,20 @@ import org.telegram.ui.Components.UniversalFragment;
 
 import java.util.ArrayList;
 
-/** Part 1 — Zoxgram Settings hub. */
+/**
+ * Part 1 — Zoxgram Settings hub.
+ * KEY_* constants kept for ProfileActivity / ContactAddActivity compatibility.
+ */
 public class ZoxgramSettingsActivity extends UniversalFragment {
+
+    // Used by ProfileActivity rows — do not remove
+    public static final String KEY_SHOW_CHAT_ID = "zoxgram_show_chat_id";
+    public static final String KEY_SHOW_REGISTRATION_DATE = "zoxgram_show_registration_date";
+    public static final String KEY_SHOW_CONTACT_NOTES = "zoxgram_show_contact_notes";
+    public static final String KEY_VOICE_DOWNLOAD = "zoxgram_voice_download";
+    public static final String KEY_SPEECH2TEXT = "zoxgram_speech2text";
+    public static final String KEY_CIRCLE_VIDEO = "zoxgram_circle_video";
+    public static final String KEY_GROUP_CALL_REC = "zoxgram_group_call_rec";
 
     private static final int ROW_GENERAL = 1;
     private static final int ROW_APPEARANCE = 2;
@@ -18,6 +30,7 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
     private static final int ROW_CUSTOMIZATION = 4;
     private static final int ROW_MEDIA = 5;
     private static final int ROW_SESSION = 6;
+    private static final int ROW_CHAT_EXTRAS = 7;
 
     @Override
     protected CharSequence getTitle() {
@@ -38,6 +51,8 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
                 "Local premium, deleted style, ads"));
 
         items.add(UItem.asShadow("More"));
+        items.add(UItem.asButton(ROW_CHAT_EXTRAS, R.drawable.settings_privacy, "Chat extras",
+                "View deleted, to beginning, official badge"));
         items.add(UItem.asButton(ROW_MEDIA, R.drawable.settings_data, "Media features",
                 "Voice download, speech2text, circle video"));
         items.add(UItem.asButton(ROW_SESSION, R.drawable.settings_devices, "Session Backup",
@@ -60,6 +75,9 @@ public class ZoxgramSettingsActivity extends UniversalFragment {
                 break;
             case ROW_CHATS:
                 presentFragment(new ZoxgramChatsActivity());
+                break;
+            case ROW_CHAT_EXTRAS:
+                presentFragment(new ZoxgramChatExtrasActivity());
                 break;
             case ROW_MEDIA:
                 presentFragment(new ZoxgramMediaActivity());
